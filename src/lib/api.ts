@@ -1,53 +1,98 @@
-import { Channel } from '@/types';
+import { ApiDetailResponse, ApiListResponse, CategoryItem, VodItem } from '@/types';
 
-const API_URL = 'https://tv.iill.top/json/Gather';
+const isClient = typeof window !== 'undefined';
+const BASE_URL = isClient
+    ? '/api/proxy'
+    : 'http://api.ffzyapi.com/api.php/provide/vod/at/json/';
 
-export async function getChannels(): Promise<Channel[]> {
+export async function getCategories(): Promise<CategoryItem[]> {
     try {
-        const res = await fetch(API_URL, { cache: 'no-store' });
-
-        // Check if response is valid JSON
-        const contentType = res.headers.get("content-type");
-        if (!contentType || !contentType.includes("application/json")) {
-            // If not JSON, maybe user agent blocking or error page
-            console.error("API did not return JSON");
-            throw new Error("Invalid content type");
-        }
-
-        if (!res.ok) {
-            throw new Error(`Failed to fetch channels: ${res.status}`);
-        }
-        const data = await res.json();
-
-        if (Array.isArray(data)) {
-            return data.map((item: any, index: number) => ({
-                id: item.id || `ch-${index}`,
-                name: item.name || `Channel ${index + 1}`,
-                url: item.url || '',
-                group: item.group || 'General',
-                logo: item.logo || '',
-            }));
-        } else if (data && typeof data === 'object') {
-            // Handle if it returns { channels: [...] } or similar
-            // Adjust based on inspection if possible. 
-            // For now, assume if object, likely contains array under common key or just single object (unlikely).
-            // If it's a map or dictionary, convert values.
-            return Object.values(data).map((item: any, index: number) => ({
-                id: item.id || `ch-${index}`,
-                name: item.name || `Channel ${index + 1}`,
-                url: item.url || '',
-                group: item.group || 'General',
-                logo: item.logo || '',
-            }));
-        }
+        const res = await fetch(`${BASE_URL}/?ac=list`, {
+            next: { revalidate: 3600 },
+        });
+        if (!res.ok) return [];
+        const data: ApiListResponse = await res.json();
+        return data.class || [];
+    } catch {
         return [];
-    } catch (error) {
-        console.error('Error fetching channels:', error);
-        // Return mock data for demonstration if API fails (which is likely given 520)
-        return [
-            { id: '1', name: 'Big Buck Bunny', url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8', group: 'Movies', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Big_buck_bunny_poster_big.jpg/250px-Big_buck_bunny_poster_big.jpg' },
-            { id: '2', name: 'Sintel', url: 'https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8', group: 'Movies', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Sintel_poster.jpg/250px-Sintel_poster.jpg' },
-            { id: '3', name: 'Tears of Steel', url: 'https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8', group: 'Movies', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6c/Tears_of_Steel_poster.jpg/250px-Tears_of_Steel_poster.jpg' },
-        ];
     }
+}
+
+export async function getVideoList(
+    page: number = 1,
+    typeId?: number
+): Promise<{ list: VodItem[]; pagecount: number; total: number }> {
+    try {
+        let url = `${BASE_URL}/?ac=detail&pg=${page}`;
+        if (typeId) url += `&t=${typeId}`;
+
+        const res = await fetch(url, { next: { revalidate: 300 } });
+        if (!res.ok) return { list: [], pagecount: 1, total: 0 };
+
+        const data: ApiDetailResponse = await res.json();
+        if (data.code !== 1) return { list: [], pagecount: 1, total: 0 };
+
+        return {
+            list: data.list || [],
+            pagecount: data.pagecount || 1,
+            total: data.total || 0,
+        };
+    } catch {
+        return { list: [], pagecount: 1, total: 0 };
+    }
+}
+
+export async function getVideoDetail(id: number): Promise<VodItem | null> {
+    try {
+        const res = await fetch(`${BASE_URL}/?ac=detail&ids=${id}`, {
+            next: { revalidate: 300 },
+        });
+        if (!res.ok) return null;
+        const data: ApiDetailResponse = await res.json();
+        if (data.code !== 1 || !data.list?.length) return null;
+        return data.list[0];
+    } catch {
+        return null;
+    }
+}
+
+export async function searchVideos(
+    keyword: string,
+    page: number = 1
+): Promise<{ list: VodItem[]; pagecount: number; total: number }> {
+    try {
+        const res = await fetch(
+            `${BASE_URL}/?ac=detail&wd=${encodeURIComponent(keyword)}&pg=${page}`,
+            { next: { revalidate: 60 } }
+        );
+        if (!res.ok) return { list: [], pagecount: 1, total: 0 };
+        const data: ApiDetailResponse = await res.json();
+        if (data.code !== 1) return { list: [], pagecount: 1, total: 0 };
+        return {
+            list: data.list || [],
+            pagecount: data.pagecount || 1,
+            total: data.total || 0,
+        };
+    } catch {
+        return { list: [], pagecount: 1, total: 0 };
+    }
+}
+
+export function parsePlaySources(vod: VodItem) {
+    if (!vod.vod_play_from || !vod.vod_play_url) return [];
+
+    const fromList = vod.vod_play_from.split('$$$');
+    const urlList = vod.vod_play_url.split('$$$');
+
+    return fromList.map((name, i) => {
+        const episodesRaw = urlList[i] || '';
+        const episodes = episodesRaw.split('#').map((ep) => {
+            const parts = ep.split('$');
+            return {
+                name: parts[0]?.trim() || `第${i + 1}集`,
+                url: parts[1]?.trim() || '',
+            };
+        }).filter((ep) => ep.url);
+        return { name, episodes };
+    });
 }

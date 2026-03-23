@@ -1,32 +1,30 @@
-import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
-import './globals.css';
-import { ThemeProvider } from './providers';
-import Header from '@/components/Header';
-
-const inter = Inter({ subsets: ['latin'] });
+import type { Metadata } from "next";
+import "./globals.css";
+import Providers from "./providers";
 
 export const metadata: Metadata = {
-  title: 'VOD Stream',
-  description: 'Minimal VOD streaming site',
+  title: "喵喵影视 - 在线视频",
+  description: "免费在线观看最新电影、电视剧、综艺、动漫、体育赛事",
+  keywords: "在线视频,电影,电视剧,综艺,动漫,篮球,足球,免费观看",
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} min-h-screen bg-white dark:bg-black text-zinc-900 dark:text-zinc-50 antialiased`}>
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
-          <div className="relative flex min-h-screen flex-col">
-            <Header />
-            <main className="flex-1 w-full">
-              {children}
-            </main>
-          </div>
-        </ThemeProvider>
+    <html lang="zh-CN" suppressHydrationWarning>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700;900&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
