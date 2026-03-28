@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Providers from "./providers";
+import Header from "@/components/Header";
 
 export const metadata: Metadata = {
   title: "喵喵影视 - 在线视频",
@@ -23,8 +24,11 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body>
-        <Providers>{children}</Providers>
+      <body className="min-h-screen bg-white dark:bg-[#02050a] text-slate-900 dark:text-slate-100 antialiased transition-colors duration-300">
+        <Providers>
+          <Header />
+          {children}
+        </Providers>
       </body>
     </html>
   );

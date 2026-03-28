@@ -2,7 +2,6 @@
 
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useState, Suspense } from 'react';
-import Header from '@/components/Header';
 import VideoGrid from '@/components/VideoGrid';
 import Pagination from '@/components/Pagination';
 import { VodItem } from '@/types';
@@ -143,7 +142,6 @@ function SearchContent() {
 export default function SearchPage() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans transition-colors duration-300 flex flex-col">
-      <Header />
       <Suspense fallback={
         <div className="flex flex-col items-center justify-center flex-1 h-[50vh]">
           <Loader size={40} className="text-blue-500 animate-spin mb-4" />

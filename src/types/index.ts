@@ -1,5 +1,5 @@
 export interface VodItem {
-  vod_id: number;
+  vod_id: number | string;
   vod_name: string;
   type_id: number;
   type_id_1?: number;

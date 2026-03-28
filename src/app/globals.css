@@ -2,9 +2,27 @@
 
 @theme {
   --font-sans: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  
+  /* Color Variables for Theme Switching */
+  --color-page-bg: var(--background);
+  --color-page-text: var(--foreground);
 }
 
 @layer base {
+  :root {
+    --background: #ffffff;
+    --foreground: #0f172a; /* Slate 900 */
+    --card-bg: #f8fafc; /* Slate 50 */
+    --card-border: #e2e8f0; /* Slate 200 */
+  }
+
+  .dark {
+    --background: #02050a; /* Deep Black */
+    --foreground: #f1f5f9; /* Slate 100 */
+    --card-bg: #0f172a; /* Slate 900 */
+    --card-border: #1e293b; /* Slate 800 */
+  }
+
   html {
     scroll-behavior: smooth;
   }
@@ -12,6 +30,9 @@
   body {
     font-family: var(--font-sans);
     min-height: 100vh;
+    background-color: var(--background);
+    color: var(--foreground);
+    transition: background-color 0.4s ease, color 0.4s ease;
   }
 }
 

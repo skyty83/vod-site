@@ -8,9 +8,17 @@ interface VideoPlayerProps {
   sources: PlaySource[];
 }
 
-export default function VideoPlayer({ sources }: VideoPlayerProps) {
+export default function VideoPlayer({ sources: allSources }: VideoPlayerProps) {
+  // Find the first source that seems to possess m3u8 streams (since we only support HLS natively), falling back to index 0.
+  const preferredSource = allSources.find(src => 
+    src.name.toLowerCase().includes('m3u8') || 
+    src.episodes.some(ep => ep.url.includes('.m3u8'))
+  ) || allSources[0];
+
+  const sources = preferredSource ? [preferredSource] : [];
+  
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [activeSource, setActiveSource] = useState(1);
+  const [activeSource, setActiveSource] = useState(0);
   const [activeEpisode, setActiveEpisode] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -114,37 +122,13 @@ export default function VideoPlayer({ sources }: VideoPlayerProps) {
           controls
           className="w-full h-full object-contain bg-black"
           onWaiting={() => setLoading(true)}
-          onPlaying={() => setLoading(false)}
+          onPlaying={() => { setLoading(false); setError(false); }}
           onError={() => { setError(true); setLoading(false); }}
         />
       </div>
-
-      <div className="flex flex-col gap-4 bg-white/50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 backdrop-blur-sm shadow-sm">
-        {/* Source Selector */}
-        {sources.length > 1 && (
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="text-xs font-bold text-slate-500 dark:text-slate-400 tracking-wider w-12 flex-shrink-0">
-              线路
-            </div>
-            {sources.map((src, i) => (
-              <button
-                key={i}
-                onClick={() => { setActiveSource(i); setActiveEpisode(0); }}
-                className={`${pillClasses} ${activeSource === i ? activeClasses : inactiveClasses}`}
-              >
-                {src.name || `线路${i + 1}`}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Separator if both exist */}
-        {sources.length > 1 && currentSource.episodes.length > 1 && (
-          <div className="h-px w-full bg-slate-200 dark:bg-slate-800/60 my-1"></div>
-        )}
-
-        {/* Episode Selector */}
-        {currentSource.episodes.length > 1 && (
+      {/* Only show the episode selector if there is more than 1 episode. The source selector is safely hidden because we sliced sources to 1 */}
+      {currentSource.episodes.length > 1 && (
+        <div className="flex flex-col gap-4 bg-white/50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 backdrop-blur-sm shadow-sm">
           <div>
             <div className="text-xs font-bold text-slate-500 dark:text-slate-400 tracking-wider mb-3">
               选集 ({currentSource.episodes.length})
@@ -155,8 +139,8 @@ export default function VideoPlayer({ sources }: VideoPlayerProps) {
                   key={i}
                   onClick={() => setActiveEpisode(i)}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${activeEpisode === i
-                      ? 'bg-blue-500 text-white shadow-md shadow-blue-500/20'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                    ? 'bg-blue-500 text-white shadow-md shadow-blue-500/20'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
                     }`}
                 >
                   {ep.name}
@@ -164,8 +148,8 @@ export default function VideoPlayer({ sources }: VideoPlayerProps) {
               ))}
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
