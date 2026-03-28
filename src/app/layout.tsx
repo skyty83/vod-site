@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import "./globals.css";
 import Providers from "./providers";
 import Header from "@/components/Header";
@@ -26,7 +27,9 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen bg-white dark:bg-[#02050a] text-slate-900 dark:text-slate-100 antialiased transition-colors duration-300">
         <Providers>
-          <Header />
+          <Suspense fallback={<div className="h-20" />}>
+            <Header />
+          </Suspense>
           {children}
         </Providers>
       </body>
