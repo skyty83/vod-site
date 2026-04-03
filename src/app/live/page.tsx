@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState, useRef, useMemo } from 'react';
-import { Search, MonitorPlay, Tv, Play, Wifi, Globe, Heart, Activity, Radio, Volume2, ShieldCheck, Cpu, AlertCircle, PlayCircle, Loader2, Sparkles, Filter, Info, Terminal, Share2, Layers, Clock, Settings2, BarChart3, ScanEye, CalendarRange, Box, Navigation, Maximize2, VolumeX, Pause, List, ChevronRight } from 'lucide-react';
-import Hls from 'hls.js';
+import { useEffect, useState, useMemo } from 'react';
+import { Search, MonitorPlay, Tv, Wifi, Radio, Volume2, CalendarRange, List, ChevronRight, Clock, Settings2, Layers, Filter } from 'lucide-react';
+import Player from '@/components/Player';
 
 interface Channel {
    name: string;
@@ -26,19 +26,11 @@ export default function LivePage() {
    const [activeUrlIndex, setActiveUrlIndex] = useState<number>(0);
    const [searchQuery, setSearchQuery] = useState('');
    const [loading, setLoading] = useState(true);
-   const [isPlaying, setIsPlaying] = useState(false);
-   const [isBuffering, setIsBuffering] = useState(false);
-   const [hasError, setHasError] = useState(false);
    const [currentTime, setCurrentTime] = useState<Date | null>(null);
-   const [isMuted, setIsMuted] = useState(false);
-   const [volume, setVolume] = useState(80);
 
    // EPG Data
    const [epgData, setEpgData] = useState<Record<string, EPGProgram[]>>({});
    const [epgLoading, setEpgLoading] = useState(false);
-
-   const videoRef = useRef<HTMLVideoElement>(null);
-   const hlsRef = useRef<Hls | null>(null);
 
    useEffect(() => {
       setCurrentTime(new Date());
@@ -134,51 +126,9 @@ export default function LivePage() {
    }, [selectedChannel, channels]);
 
    const handleChannelSelect = (channel: Channel) => {
-      setHasError(false);
       setSelectedChannel(channel);
       const nodeIdx = channels.filter(ch => ch.name === channel.name).findIndex(ch => ch.url === channel.url);
       setActiveUrlIndex(nodeIdx !== -1 ? nodeIdx : 0);
-   };
-
-   useEffect(() => {
-      if (!selectedChannel || !videoRef.current) return;
-      const video = videoRef.current;
-      if (hlsRef.current) hlsRef.current.destroy();
-      setHasError(false);
-      setIsBuffering(true);
-      setIsPlaying(false);
-      if (Hls.isSupported()) {
-         const hls = new Hls({ enableWorker: true, lowLatencyMode: true });
-         hlsRef.current = hls;
-         hls.loadSource(selectedChannel.url);
-         hls.attachMedia(video);
-         hls.on(Hls.Events.MANIFEST_PARSED, () => {
-            if (videoRef.current) videoRef.current.volume = volume / 100;
-            video.play().catch(() => { });
-         });
-         hls.on(Hls.Events.ERROR, () => { setHasError(true); setIsBuffering(false); });
-         hls.on(Hls.Events.FRAG_BUFFERED, () => { setIsBuffering(false); setIsPlaying(true); });
-      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-         video.src = selectedChannel.url;
-         video.volume = volume / 100;
-         video.play().then(() => setIsPlaying(true)).catch(() => setIsBuffering(false));
-      }
-   }, [selectedChannel, activeUrlIndex]);
-
-   useEffect(() => {
-      if (videoRef.current) {
-         videoRef.current.volume = volume / 100;
-         videoRef.current.muted = isMuted;
-      }
-   }, [volume, isMuted]);
-
-   const toggleFullscreen = () => {
-      if (!videoRef.current) return;
-      if (document.fullscreenElement) {
-         document.exitFullscreen();
-      } else {
-         videoRef.current.requestFullscreen();
-      }
    };
 
    const filteredChannels = useMemo(() => {
@@ -202,14 +152,14 @@ export default function LivePage() {
    );
 
    return (
-      <div className="h-screen bg-white dark:bg-[#02050a] text-slate-900 dark:text-white flex flex-col font-sans overflow-hidden relative selection:bg-rose-600">
+      <div className="h-screen bg-white dark:bg-[#02050a] text-slate-900 dark:text-white flex flex-col font-sans overflow-y-auto lg:overflow-hidden relative selection:bg-rose-600">
 
-         <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+         <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
             <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-blue-600/10 blur-[200px] animate-pulse"></div>
             <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-rose-600/5 blur-[200px] animate-pulse [animation-delay:3s]"></div>
          </div>
 
-         <header className="h-24 shrink-0 flex items-center justify-between px-10 relative z-50">
+         <header className="h-20 sm:h-24 shrink-0 flex items-center justify-between px-4 sm:px-10 relative z-50">
             <div className="flex items-center gap-6">
                <div className="hidden sm:flex items-center gap-8 px-8 py-3 bg-white/[0.03] border border-white/[0.05] rounded-[2rem] backdrop-blur-3xl">
                   <div className="flex items-center gap-3 text-slate-500 font-black text-[9px] tracking-[.3em] uppercase">
@@ -225,10 +175,10 @@ export default function LivePage() {
             </div>
          </header>
 
-         <main className="h-[calc(100vh-6rem)] flex overflow-hidden relative z-10 px-8 pb-8 gap-8">
-            <aside className="w-[320px] shrink-0 flex flex-col gap-6 overflow-hidden">
-               <div className="flex-1 border border-white/[0.04] bg-white/[0.02] backdrop-blur-3xl rounded-[3rem] flex flex-col overflow-hidden shadow-2xl">
-                  <div className="p-8 border-b border-white/[0.03] space-y-4">
+         <main className="lg:h-[calc(100vh-6rem)] flex flex-col lg:flex-row lg:overflow-hidden relative z-10 px-4 sm:px-8 pb-8 gap-4 sm:gap-8">
+            <aside className="w-full lg:w-[280px] xl:w-[320px] shrink-0 flex flex-col gap-6 lg:overflow-hidden">
+               <div className="flex-1 border border-white/[0.04] bg-white/[0.02] backdrop-blur-3xl rounded-3xl lg:rounded-[3rem] flex flex-col overflow-hidden shadow-2xl">
+                  <div className="p-5 lg:p-8 border-b border-white/[0.03] space-y-2 lg:space-y-4 hidden lg:block">
                      <div className="flex items-center gap-3">
                         <div className="w-2 h-2 rounded-full bg-rose-500"></div>
                         <span className="text-[11px] font-black tracking-[.2em] uppercase text-slate-300">Hub Discovery</span>
@@ -236,40 +186,40 @@ export default function LivePage() {
                      <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest leading-relaxed">Select a category and explore worldwide broadcast feeds.</p>
                   </div>
 
-                  <div className="p-6 space-y-2 overflow-y-auto custom-scrollbar flex-1">
+                  <div className="p-3 lg:p-6 flex lg:flex-col gap-2 overflow-x-auto lg:overflow-y-auto custom-scrollbar flex-1 lg:space-y-2 scrollbar-hide">
                      {categories.map(cat => (
                         <button
                            key={cat}
                            onClick={() => setActiveCategory(cat)}
-                           className={`w-full flex items-center justify-between px-6 py-5 rounded-[1.8rem] transition-all group ${activeCategory === cat
-                              ? 'bg-rose-600 text-white shadow-2xl shadow-rose-600/30 font-black'
-                              : 'text-slate-500 hover:text-white hover:bg-white/[0.04]'
+                           className={`shrink-0 lg:w-full flex items-center justify-between px-4 lg:px-6 py-3 lg:py-5 rounded-2xl lg:rounded-[1.8rem] transition-all group ${activeCategory === cat
+                              ? 'bg-rose-600 text-white shadow-xl lg:shadow-2xl shadow-rose-600/30 font-black'
+                              : 'text-slate-500 hover:text-white hover:bg-white/[0.04] bg-white/[0.02] lg:bg-transparent'
                               }`}
                         >
-                           <div className="flex items-center gap-4">
-                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${activeCategory === cat ? 'bg-white/20' : 'bg-black/40 group-hover:bg-rose-600/20'}`}>
-                                 {cat.includes('央视') ? <Tv size={18} /> : (cat.includes('卫视') ? <Radio size={18} /> : <MonitorPlay size={18} />)}
+                           <div className="flex items-center gap-3 lg:gap-4">
+                              <div className={`w-8 h-8 lg:w-10 lg:h-10 rounded-xl flex items-center justify-center transition-all ${activeCategory === cat ? 'bg-white/20' : 'bg-black/40 group-hover:bg-rose-600/20'}`}>
+                                 {cat.includes('央视') ? <Tv size={16} className="lg:w-[18px] lg:h-[18px]" /> : (cat.includes('卫视') ? <Radio size={16} className="lg:w-[18px] lg:h-[18px]" /> : <MonitorPlay size={16} className="lg:w-[18px] lg:h-[18px]" />)}
                               </div>
-                              <span className="text-[13px] tracking-tight">{cat}</span>
+                              <span className="text-xs lg:text-[13px] tracking-tight whitespace-nowrap">{cat}</span>
                            </div>
-                           <ChevronRight size={14} className={activeCategory === cat ? 'opacity-100' : 'opacity-0 group-hover:opacity-40 transition-opacity'} />
+                           <ChevronRight size={14} className={`hidden lg:block ${activeCategory === cat ? 'opacity-100' : 'opacity-0 group-hover:opacity-40 transition-opacity'}`} />
                         </button>
                      ))}
                   </div>
                </div>
             </aside>
 
-            <div className="flex-1 flex flex-col lg:flex-row gap-8 overflow-hidden">
-               <div className="flex-1 flex flex-col overflow-hidden min-h-0 h-full">
-                  <div className="flex-1 flex flex-col gap-8 overflow-hidden bg-black/40 border border-white/[0.04] backdrop-blur-3xl rounded-[4rem] p-10 relative group/p-sec">
-                     <div className="flex items-end justify-between">
-                        <div className="space-y-4">
-                           <div className="flex items-center gap-2 bg-rose-500/10 text-rose-500 text-[9px] font-black tracking-[0.4em] uppercase py-1.5 px-4 rounded-full border border-rose-500/20">
+            <div className="flex-1 flex flex-col lg:flex-row gap-4 sm:gap-8 lg:overflow-hidden">
+               <div className="flex-1 flex flex-col lg:overflow-hidden min-h-[50vh] lg:h-full">
+                  <div className="flex-1 flex flex-col gap-4 sm:gap-8 lg:overflow-hidden bg-black/40 border border-white/[0.04] backdrop-blur-3xl rounded-3xl lg:rounded-[4rem] p-4 sm:p-6 lg:p-10 relative group/p-sec">
+                     <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+                        <div className="space-y-2 sm:space-y-4">
+                           <div className="flex items-center gap-2 bg-rose-500/10 text-rose-500 text-[9px] font-black tracking-[0.4em] uppercase py-1.5 px-4 rounded-full border border-rose-500/20 w-fit">
                               <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
                               Now Broadcasting
                            </div>
-                           <h2 className="text-6xl font-black tracking-[-0.07em] leading-none uppercase">{selectedChannel?.name}</h2>
-                           <div className="bg-white/5 border border-white/5 p-2 rounded-xl flex items-center gap-2 max-w-fit">
+                           <h2 className="text-3xl sm:text-4xl lg:text-6xl font-black tracking-[-0.07em] leading-none uppercase truncate">{selectedChannel?.name}</h2>
+                           <div className="bg-white/5 border border-white/5 p-2 rounded-xl flex items-center gap-2 w-fit">
                               <Layers size={14} className="text-amber-500" />
                               <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mr-2">Route Index</span>
                               <div className="flex gap-1.5">
@@ -279,9 +229,9 @@ export default function LivePage() {
                               </div>
                            </div>
                         </div>
-                        <div className="bg-white/[0.02] border border-white/5 rounded-[2.5rem] p-8 min-w-[340px] flex items-center gap-6 group/epg cursor-default">
-                           <div className="w-14 h-14 rounded-3xl bg-amber-500/10 flex items-center justify-center text-amber-500"><CalendarRange size={24} /></div>
-                           <div className="flex-1">
+                        <div className="bg-white/[0.02] border border-white/5 rounded-2xl lg:rounded-[2.5rem] p-4 lg:p-8 sm:min-w-[280px] lg:min-w-[340px] flex items-center gap-4 lg:gap-6 group/epg cursor-default">
+                           <div className="w-10 h-10 lg:w-14 lg:h-14 rounded-xl lg:rounded-3xl bg-amber-500/10 flex items-center justify-center text-amber-500 shrink-0"><CalendarRange size={20} className="lg:w-6 lg:h-6" /></div>
+                           <div className="flex-1 min-w-0">
                               {epgLoading ? <div className="h-4 w-32 bg-white/5 animate-pulse rounded-full"></div> : currentProgram ? (
                                  <div className="space-y-1">
                                     <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest">{currentProgram.start.slice(8, 10)}:{currentProgram.start.slice(10, 12)} - {currentProgram.stop.slice(8, 10)}:{currentProgram.stop.slice(10, 12)}</span>
@@ -291,43 +241,25 @@ export default function LivePage() {
                            </div>
                         </div>
                      </div>
-                     <div className="relative flex-1 bg-black rounded-[4rem] overflow-hidden shadow-[0_60px_100px_rgba(0,0,0,1)] ring-1 ring-white/10 group/player-box">
-                        <video ref={videoRef} className="w-full h-full object-contain" onPlay={() => setIsPlaying(true)} onWaiting={() => setIsBuffering(true)} playsInline autoPlay />
-                        <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black to-transparent pointer-events-none z-10 opacity-0 group-hover/player-box:opacity-100 transition-opacity duration-700"></div>
-                        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 w-[90%] flex items-center justify-between px-10 py-6 bg-black/60 backdrop-blur-3xl border border-white/5 rounded-[3rem] opacity-0 group-hover/player-box:opacity-100 group-hover/player-box:translate-y-0 translate-y-6 transition-all duration-700">
-                           <div className="flex items-center gap-8">
-                              <button onClick={() => videoRef.current ? (isPlaying ? (videoRef.current.pause(), setIsPlaying(false)) : (videoRef.current.play(), setIsPlaying(true))) : null} className="w-12 h-12 rounded-2xl bg-white text-black flex items-center justify-center hover:bg-rose-600 hover:text-white transition-all">
-                                 {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
-                              </button>
-                              <div className="flex items-center gap-4">
-                                 <button onClick={() => setIsMuted(!isMuted)} className="text-slate-400 hover:text-white transition-colors">{isMuted || volume === 0 ? <VolumeX size={20} /> : <Volume2 size={20} />}</button>
-                                 <input type="range" min="0" max="100" value={volume} onChange={(e) => setVolume(Number(e.target.value))} className="w-32 h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-rose-600" />
-                              </div>
-                           </div>
-                           <div className="flex items-center gap-10">
-                              <div className="flex items-center gap-2"><Activity size={16} className="text-rose-500 px-0.5" /><span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Stable Feed</span></div>
-                              <button onClick={toggleFullscreen} className="w-12 h-12 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-white hover:bg-white/10 transition-all"><Maximize2 size={20} /></button>
-                           </div>
-                        </div>
-                        {isBuffering && <div className="absolute inset-0 z-30 bg-slate-950/20 backdrop-blur-3xl flex flex-col items-center justify-center gap-6"><Loader2 size={64} className="text-rose-500 animate-spin" /><p className="text-[11px] font-black text-white tracking-[1em] uppercase">Syncing Stream...</p></div>}
-                        {hasError && <div className="absolute inset-0 z-40 bg-slate-950 flex flex-col items-center justify-center p-20 text-center gap-8"><AlertCircle size={48} className="text-rose-500" /><h3 className="text-3xl font-black uppercase tracking-tighter">Connection Terminated</h3><button onClick={() => setSelectedChannel(selectedChannel)} className="px-12 py-4 bg-white text-black font-black rounded-full hover:bg-rose-500 hover:text-white transition-all text-[10px] tracking-widest">RESTORE SIGNAL</button></div>}
+                     <div className="relative flex-1 bg-black rounded-2xl lg:rounded-[4rem] overflow-hidden shadow-[0_30px_50px_rgba(0,0,0,0.8)] lg:shadow-[0_60px_100px_rgba(0,0,0,1)] ring-1 ring-white/10 group/player-box min-h-[250px]">
+                        {selectedChannel && <Player key={selectedChannel.url} url={selectedChannel.url} />}
                      </div>
                   </div>
                </div>
-               <div className="w-full lg:w-[450px] flex flex-col gap-6 overflow-hidden">
-                  <div className="p-10 bg-white/[0.02] border border-white/[0.04] backdrop-blur-3xl rounded-[4rem] flex-1 flex flex-col overflow-hidden shadow-2xl">
-                     <div className="space-y-6 mb-10 shrink-0">
-                        <div className="flex items-center justify-between"><span className="text-[11px] font-black tracking-[.4em] uppercase text-rose-500 flex items-center gap-2"><List size={16} /> Hub Navigator</span><Filter size={18} className="text-slate-500" /></div>
-                        <div className="relative group"><Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600 transition-colors group-focus-within:text-rose-500" size={20} /><input type="text" placeholder="FILTER STATIONS" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-black/40 border border-white/[0.05] rounded-[2rem] py-5 pl-16 pr-8 text-[11px] font-black focus:outline-none transition-all placeholder:text-slate-800 shadow-inner" /></div>
+               <div className="w-full lg:w-[380px] xl:w-[450px] shrink-0 flex flex-col gap-4 sm:gap-6 lg:overflow-hidden pb-10 lg:pb-0 h-[400px] lg:h-auto">
+                  <div className="p-4 sm:p-6 lg:p-10 bg-white/[0.02] border border-white/[0.04] backdrop-blur-3xl rounded-3xl lg:rounded-[4rem] flex-1 flex flex-col overflow-hidden shadow-2xl">
+                     <div className="space-y-4 lg:space-y-6 mb-6 lg:mb-10 shrink-0">
+                        <div className="flex items-center justify-between"><span className="text-[10px] lg:text-[11px] font-black tracking-[.4em] uppercase text-rose-500 flex items-center gap-2"><List size={16} /> Hub Navigator</span><Filter size={18} className="text-slate-500 hidden sm:block" /></div>
+                        <div className="relative group"><Search className="absolute left-4 lg:left-6 top-1/2 -translate-y-1/2 text-slate-600 transition-colors group-focus-within:text-rose-500" size={18} /><input type="text" placeholder="FILTER STATIONS" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-black/40 border border-white/[0.05] rounded-[1.5rem] lg:rounded-[2rem] py-3 lg:py-5 pl-12 lg:pl-16 pr-6 lg:pr-8 text-[10px] lg:text-[11px] font-black focus:outline-none transition-all placeholder:text-slate-700 shadow-inner" /></div>
                      </div>
-                     <div className="flex-1 overflow-y-auto custom-scrollbar space-y-4 pr-2">
+                     <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 lg:space-y-4 pr-1 lg:pr-2">
                         {filteredChannels.map((ch, idx) => {
                            const isS = selectedChannel?.name === ch.name;
                            return (
-                              <button key={idx} onClick={() => handleChannelSelect(ch)} className={`w-full group/i flex items-center gap-6 p-6 rounded-[2.8rem] transition-all relative overflow-hidden border ${isS ? 'bg-rose-600 border-rose-400 shadow-[0_20px_40px_-10px_rgba(225,29,72,0.4)] translate-x-1' : 'bg-white/[0.01] border-white/[0.03] hover:bg-white/[0.05] hover:border-white/[0.1] hover:scale-[1.02]'}`}>
-                                 <div className={`w-14 h-14 rounded-3xl flex items-center justify-center shrink-0 transition-transform duration-700 ${isS ? 'bg-white/20' : 'bg-black/40 text-slate-700 group-hover/i:text-rose-500'}`}>{isS ? <Volume2 size={24} /> : <span className="text-sm font-black opacity-30 italic">{String(idx + 1).padStart(2, '0')}</span>}</div>
-                                 <div className="flex-1 text-left min-w-0"><p className={`font-black text-xl tracking-tighter truncate ${isS ? 'text-white' : 'text-slate-400 group-hover/i:text-slate-200'}`}>{ch.name}</p><span className={`text-[9px] font-black uppercase tracking-widest ${isS ? 'text-rose-200' : 'text-slate-800'}`}>HD Source Approved</span></div>
-                                 {isS && <div className="w-2 h-2 rounded-full bg-white shadow-[0_0_10px_white]"></div>}
+                              <button key={idx} onClick={() => handleChannelSelect(ch)} className={`w-full group/i flex items-center gap-3 lg:gap-6 p-3 lg:p-6 rounded-[1.5rem] lg:rounded-[2.8rem] transition-all relative overflow-hidden border ${isS ? 'bg-rose-600 border-rose-400 shadow-[0_10px_30px_-5px_rgba(225,29,72,0.4)] lg:translate-x-1' : 'bg-white/[0.01] border-white/[0.03] hover:bg-white/[0.05] hover:border-white/[0.1] hover:scale-[1.02]'}`}>
+                                 <div className={`w-10 h-10 lg:w-14 lg:h-14 rounded-xl lg:rounded-3xl flex items-center justify-center shrink-0 transition-transform duration-700 ${isS ? 'bg-white/20' : 'bg-black/40 text-slate-700 group-hover/i:text-rose-500'}`}>{isS ? <Volume2 size={20} className="lg:w-6 lg:h-6" /> : <span className="text-xs lg:text-sm font-black opacity-30 italic">{String(idx + 1).padStart(2, '0')}</span>}</div>
+                                 <div className="flex-1 text-left min-w-0"><p className={`font-black text-base lg:text-xl tracking-tighter truncate ${isS ? 'text-white' : 'text-slate-400 group-hover/i:text-slate-200'}`}>{ch.name}</p><span className={`text-[8px] lg:text-[9px] font-black uppercase tracking-widest ${isS ? 'text-rose-200' : 'text-slate-800'}`}>HD Source Approved</span></div>
+                                 {isS && <div className="w-1.5 h-1.5 lg:w-2 lg:h-2 rounded-full bg-white shadow-[0_0_10px_white]"></div>}
                               </button>
                            );
                         })}
