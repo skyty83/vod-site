@@ -62,7 +62,10 @@ export default function CategorySection({ typeId, typeName }: CategorySectionPro
 
         // Fetch up to 10 items from multiple sub-categories for a diverse mix
         const promises = subIds.slice(0, 5).map(sid => getVideoList(sortMode === 'hot' ? 2 : 1, sid, true));
-        promises.unshift(getVideoList(sortMode === 'hot' ? 2 : 1, typeId, true));
+        // Only unshift the parent category if we are fetching multiple subcategories
+        if (subIds.length > 1) {
+          promises.unshift(getVideoList(sortMode === 'hot' ? 2 : 1, typeId, true));
+        }
 
         const results = await Promise.all(promises);
         const combined = results.flatMap(r => r.list as VodItem[]);

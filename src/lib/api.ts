@@ -45,13 +45,13 @@ function prefixVodItems(items: VodItem[], apiIndex: number): VodItem[] {
 const CATEGORY_MAP: Record<number, (number | undefined)[]> = {
     // ── 영화 ──
     1:  [1,   1,   1,   1,   7,   2,   1  ], // 电影片
-    6:  [6,   6,   6,   6,   10,  2,   undefined], // 动作片
-    7:  [7,   7,   12,  7,   11,  2,   undefined], // 喜剧片
-    8:  [8,   8,   7,   8,   12,  2,   undefined], // 爱情片
-    9:  [9,   9,   8,   9,   13,  2,   undefined], // 科幻片
-    10: [10,  11,  11,  10,  14,  2,   undefined], // 恐怖片
-    11: [11,  10,  10,  11,  15,  2,   undefined], // 剧情片
-    12: [12,  12,  9,   12,  16,  2,   undefined], // 战争片
+    6:  [6,   6,   6,   6,   10,  undefined,   undefined], // 动作片
+    7:  [7,   7,   12,  7,   11,  undefined,   undefined], // 喜剧片
+    8:  [8,   8,   7,   8,   12,  undefined,   undefined], // 爱情片
+    9:  [9,   9,   8,   9,   13,  undefined,   undefined], // 科幻片
+    10: [10,  11,  11,  10,  14,  undefined,   undefined], // 恐怖片
+    11: [11,  10,  10,  11,  15,  undefined,   undefined], // 剧情片
+    12: [12,  12,  9,   12,  16,  undefined,   undefined], // 战争片
     20: [20,  24,  5,   20,  24,  undefined, undefined], // 记录片
     34: [34,  25,  22,  55,  39,  undefined, undefined], // 伦理片
 
@@ -69,18 +69,18 @@ const CATEGORY_MAP: Record<number, (number | undefined)[]> = {
 
     // ── 예능 ──
     3:  [3,   3,   4,   3,   9,   27,  undefined], // 综艺片
-    25: [25,  3,   4,   25,  34,  27,  undefined], // 大陆综艺
-    26: [26,  3,   4,   27,  35,  27,  undefined], // 港台综艺
-    27: [27,  3,   4,   26,  36,  27,  undefined], // 日韩综艺
-    28: [28,  3,   4,   28,  37,  27,  undefined], // 欧美综艺
+    25: [25,  undefined,  undefined,   25,  34,  undefined,  undefined], // 大陆综艺
+    26: [26,  undefined,  undefined,   27,  35,  undefined,  undefined], // 港台综艺
+    27: [27,  undefined,  undefined,   26,  36,  undefined,  undefined], // 日韩综艺
+    28: [28,  undefined,  undefined,   28,  37,  undefined,  undefined], // 欧美综艺
 
     // ── 애니메이션 ──
     4:  [4,   4,   3,   4,   40,  24,  undefined], // 动漫片
-    29: [29,  4,   24,  29,  1,   24,  undefined], // 国产动漫
-    30: [30,  4,   25,  30,  2,   25,  undefined], // 日韩动漫
-    31: [31,  4,   26,  31,  3,   undefined, undefined], // 欧美动漫
-    32: [32,  4,   undefined, 44, 4,   undefined, undefined], // 港台动漫
-    33: [33,  4,   undefined, 45, undefined, undefined, undefined], // 海外动漫
+    29: [29,  undefined,  24,  29,  1,   24,  undefined], // 国产动漫
+    30: [30,  undefined,  25,  30,  2,   25,  undefined], // 日韩动漫
+    31: [31,  undefined,  26,  31,  3,   undefined, undefined], // 欧美动漫
+    32: [32,  undefined,  undefined, 44, 4,   undefined, undefined], // 港台动漫
+    33: [33,  undefined,  undefined, 45, undefined, undefined, undefined], // 海外动漫
 
     // ── 스포츠 (Subocj=2, Wsyzy=3 전용) ──
     48: [undefined, undefined, 23, 48, undefined, undefined, undefined], // 体育赛事
