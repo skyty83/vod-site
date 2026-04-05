@@ -1,15 +1,15 @@
 'use client';
 
 import { useEffect, useState, useCallback, Suspense } from 'react';
-import CategoryNav from '@/components/CategoryNav';
 import VideoGrid from '@/components/VideoGrid';
 import Pagination from '@/components/Pagination';
 import HeroSlider from '@/components/HeroSlider';
 import CategorySection from '@/components/CategorySection';
 import { CategoryItem, VodItem } from '@/types';
-import { getCategories, getVideoList } from '@/lib/api';
+import { getCategories, getVideoList, getSubCategoryIds } from '@/lib/api';
 import { TrendingUp, Clock, LayoutGrid } from 'lucide-react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { useTranslation } from 'react-i18next';
 
 // 홈 화면에 표시할 주요 대분류 섹션 ID 목록
 const HOME_SECTION_IDS = [1, 2, 3, 4, 36];
@@ -17,6 +17,7 @@ const HOME_SECTION_IDS = [1, 2, 3, 4, 36];
 const YEARS = ['2026', '2025', '2024', '2023', '2022', '2021', '2020', '2019', '2018'];
 
 function HomeContent() {
+  const { t } = useTranslation();
   const router = useRouter();
   const searchParams = useSearchParams();
   const catParam = searchParams.get('cat');
@@ -47,12 +48,8 @@ function HomeContent() {
         const combinedHero = results.map(res => {
           const list = res.list as VodItem[];
           if (!list || list.length === 0) return null;
-          // Sort by score to get the 'Hot' item
-          return list.sort((a, b) => {
-            const scoreA = parseFloat(a.vod_score || '0');
-            const scoreB = parseFloat(b.vod_score || '0');
-            return scoreB - scoreA;
-          })[0];
+          // 분야별로 최신 데이터 중 이미지가 있는 항목을 우선 선택
+          return list.find(item => item.vod_pic) || list[0];
         }).filter((item): item is VodItem => !!item);
         
         setHeroVideos(combinedHero);
@@ -107,33 +104,47 @@ function HomeContent() {
   const sectionsToRender = categories.filter(c => HOME_SECTION_IDS.includes(c.type_id));
 
   const isHome = activeCategory === undefined;
-  const isSeriesPage = activeCategory === 2;
-  const isMoviePage = activeCategory === 1;
-  const isVarietyPage = activeCategory === 3;
-  const isAnimePage = activeCategory === 4;
 
-  const SERIES_PAGE_SUB_IDS = [13, 14, 15, 16, 21, 22, 23, 24];
-  const MOVIE_PAGE_SUB_IDS = [6, 7, 8, 9, 10, 11, 12, 20];
-  const VARIETY_PAGE_SUB_IDS = [25, 26, 27, 28];
-  const ANIME_PAGE_SUB_IDS = [29, 30, 31, 32];
+  const isSectionalPage = isHome || (activeCategory !== undefined && getSubCategoryIds(activeCategory).length > 0);
 
-  const isSectionalPage = isHome || isSeriesPage || isMoviePage || isVarietyPage || isAnimePage;
-
-  const getActiveSubIds = () => {
-    if (isSeriesPage) return SERIES_PAGE_SUB_IDS;
-    if (isMoviePage) return MOVIE_PAGE_SUB_IDS;
-    if (isVarietyPage) return VARIETY_PAGE_SUB_IDS;
-    if (isAnimePage) return ANIME_PAGE_SUB_IDS;
-    return [];
+  const getHeaderGradient = (catId?: number) => {
+    if (catId === 1) return 'from-rose-500 to-orange-500'; // 电影
+    if (catId === 3) return 'from-emerald-500 to-teal-500'; // 综艺
+    if (catId === 4) return 'from-purple-500 to-pink-500'; // 动漫
+    return 'from-blue-500 to-rose-500'; // 默认 (연속극 등)
   };
 
-  const activeSubIds = getActiveSubIds();
-  const getHeaderGradient = () => {
-    if (isMoviePage) return 'from-rose-500 to-orange-500';
-    if (isVarietyPage) return 'from-emerald-500 to-teal-500';
-    if (isAnimePage) return 'from-purple-500 to-pink-500';
-    return 'from-blue-500 to-rose-500';
-  };
+  const activeSubIds = activeCategory !== undefined ? getSubCategoryIds(activeCategory) : [];
+
+  if (isHome && (categories.length === 0 || heroVideos.length === 0)) {
+    return (
+      <div className="w-full flex-1 flex flex-col items-center justify-center min-h-[80vh] relative overflow-hidden bg-background">
+        <div className="absolute inset-0 z-0 pointer-events-none">
+          <div className="absolute top-1/3 left-1/4 w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[120px] animate-pulse"></div>
+          <div className="absolute bottom-1/3 right-1/4 w-[500px] h-[500px] bg-rose-600/10 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '1s' }}></div>
+        </div>
+        <div className="relative z-10 flex flex-col items-center gap-10">
+          <div className="relative w-32 h-32">
+            <div className="absolute inset-0 border-[3px] border-white/5 rounded-full"></div>
+            <div className="absolute inset-0 border-[3px] border-transparent border-t-blue-500 border-r-purple-500 border-b-rose-500 rounded-full animate-spin" style={{ animationDuration: '1.5s' }}></div>
+            <div className="absolute inset-0 flex items-center justify-center gap-2">
+              <div className="w-1.5 h-6 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
+              <div className="w-1.5 h-10 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+              <div className="w-1.5 h-6 bg-rose-500 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+            </div>
+          </div>
+          <div className="flex flex-col items-center gap-3">
+            <h2 className="text-2xl sm:text-3xl font-black tracking-[0.3em] text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-rose-400 animate-pulse">
+              LOADING
+            </h2>
+            <p className="text-slate-500 text-xs sm:text-sm font-bold tracking-widest uppercase">
+              {t('common.loadingContent')}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full flex-1 overflow-x-hidden">
@@ -149,10 +160,10 @@ function HomeContent() {
         {isSectionalPage && (
           <>
             {/* Sectional Page Header */}
-            {(isSeriesPage || isMoviePage || isVarietyPage || isAnimePage) && (
+            {activeCategory !== undefined && getSubCategoryIds(activeCategory).length > 0 && (
               <div className="flex items-center gap-4 mb-4">
                 <h1 className="text-3xl sm:text-4xl font-black tracking-tight flex items-center gap-3">
-                  <span className={`w-2 h-10 rounded-full bg-gradient-to-b ${getHeaderGradient()}`}></span>
+                  <span className={`w-2 h-10 rounded-full bg-gradient-to-b ${getHeaderGradient(activeCategory)}`}></span>
                   {activeCategoryName}
                 </h1>
               </div>
@@ -167,9 +178,16 @@ function HomeContent() {
                 />
               ))
             ) : (
-              <div className="flex flex-col gap-12 text-center text-slate-500 py-20 bg-slate-100 dark:bg-slate-900 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-800">
-                <LayoutGrid size={48} className="mx-auto opacity-20 mb-4" />
-                <p className="font-bold">正在加载精彩内容...</p>
+              <div className="flex flex-col items-center justify-center py-20 w-full">
+                <div className="relative w-20 h-20 mb-6">
+                  <div className="absolute inset-0 bg-gradient-to-tr from-blue-500 to-rose-500 rounded-full animate-spin blur-lg opacity-30"></div>
+                  <div className="absolute inset-0 bg-card-bg rounded-full m-1 flex items-center justify-center border border-white/5">
+                    <LayoutGrid size={28} className="text-white/40 animate-pulse" />
+                  </div>
+                </div>
+                <p className="text-slate-400 text-sm font-bold tracking-widest uppercase animate-pulse">
+                  {t('common.loadingContent')}
+                </p>
               </div>
             )}
           </>
@@ -194,11 +212,11 @@ function HomeContent() {
               <div className="flex items-center gap-2 self-start sm:self-auto">
                 <div className="flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-full border shadow-sm bg-blue-500 text-white border-blue-500">
                   <Clock size={14} />
-                  <span>最新更新</span>
+                  <span>{t('sort.recent')}</span>
                 </div>
-                <div className="flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-full border shadow-sm bg-white/60 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800">
+                <div className="flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-full border shadow-sm bg-card-bg/60 dark:bg-slate-900/60 text-slate-400 border-card-border">
                   <TrendingUp size={14} />
-                  <span>热门排行</span>
+                  <span>{t('sort.hot')}</span>
                 </div>
               </div>
             </div>
@@ -209,11 +227,11 @@ function HomeContent() {
                 <button
                   onClick={() => handleYearSelect(undefined)}
                   className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-bold transition-all ${year === undefined
-                    ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-md'
-                    : 'bg-white/60 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
+                    ? 'bg-slate-900 dark:bg-card-bg text-white dark:text-foreground shadow-md'
+                    : 'bg-card-bg/60 dark:bg-slate-800/60 text-slate-400 hover:bg-card-bg dark:hover:bg-slate-800 border border-card-border'
                     }`}
                 >
-                  全部年份
+                  {t('filter.allYears')}
                 </button>
                 {YEARS.map(y => (
                   <button
@@ -221,7 +239,7 @@ function HomeContent() {
                     onClick={() => handleYearSelect(y)}
                     className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-bold transition-all ${year === y
                       ? 'bg-blue-500 text-white shadow-md'
-                      : 'bg-white/60 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
+                      : 'bg-card-bg/60 dark:bg-slate-800/60 text-slate-400 hover:bg-card-bg dark:hover:bg-slate-800 border border-card-border'
                       }`}
                   >
                     {y}
@@ -250,14 +268,14 @@ function HomeContent() {
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans transition-colors duration-300 flex flex-col">
+    <div className="min-h-screen bg-background text-foreground font-sans transition-colors duration-300 flex flex-col">
       <Suspense fallback={<div className="flex-1" />}>
         <HomeContent />
       </Suspense>
 
-      <footer className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800/80 py-8 sm:py-10 mt-10">
+      <footer className="bg-card-bg/80 dark:bg-slate-800/80 backdrop-blur-xl border-t border-card-border/80 py-8 sm:py-10 mt-10">
         <div className="max-w-[1400px] mx-auto px-4 text-center">
-          <p className="text-slate-500 dark:text-slate-400 text-sm font-semibold">
+          <p className="text-slate-400 text-sm font-semibold">
             © 2026 喵喵影视 · 仅供学习交流
           </p>
           <div className="mt-4 flex justify-center gap-2">

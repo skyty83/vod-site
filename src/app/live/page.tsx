@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { Search, MonitorPlay, Tv, Wifi, Radio, Volume2, CalendarRange, List, ChevronRight, Clock, Settings2, Layers, Filter } from 'lucide-react';
+import { Search, MonitorPlay, Tv, Wifi, Radio, List, Clock, X, ChevronDown } from 'lucide-react';
 import Player from '@/components/Player';
 
 interface Channel {
@@ -24,6 +24,8 @@ export default function LivePage() {
    const [activeCategory, setActiveCategory] = useState<string>('');
    const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
    const [activeUrlIndex, setActiveUrlIndex] = useState<number>(0);
+   const [channelMenuOpen, setChannelMenuOpen] = useState(false);
+   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
    const [searchQuery, setSearchQuery] = useState('');
    const [loading, setLoading] = useState(true);
    const [currentTime, setCurrentTime] = useState<Date | null>(null);
@@ -48,19 +50,23 @@ export default function LivePage() {
             const uniqueGroups = new Set<string>();
             let currentGroup = '其他';
             let currentName = '';
+            let currentLogo = '';
 
             for (let i = 0; i < lines.length; i++) {
                const line = lines[i].trim();
                if (line.startsWith('#EXTINF:')) {
                   const groupMatch = line.match(/group-title="([^"]+)"/);
                   currentGroup = groupMatch ? groupMatch[1] : '其他';
+                  const logoMatch = line.match(/tvg-logo="([^"]+)"/);
+                  currentLogo = logoMatch ? logoMatch[1] : '';
                   const nameIdx = line.lastIndexOf(',');
                   currentName = nameIdx !== -1 ? line.substring(nameIdx + 1).trim() : '未知频道';
                } else if (line.startsWith('http')) {
                   if (currentName) {
-                     parsedChannels.push({ name: currentName, url: line, group: currentGroup });
+                     parsedChannels.push({ name: currentName, url: line, group: currentGroup, logo: currentLogo || undefined });
                      uniqueGroups.add(currentGroup);
                      currentName = '';
+                     currentLogo = '';
                   }
                }
             }
@@ -107,17 +113,39 @@ export default function LivePage() {
       }
    };
 
+   const fmtEpg = (ts?: string) => {
+      if (!ts) return '';
+      const raw = ts.split(' ')[0] || '';
+      if (raw.length < 12) return '';
+      return `${raw.slice(8, 10)}:${raw.slice(10, 12)}`;
+   };
+
+   const findEpgId = (channelName: string) => {
+      const compact = channelName.replace(/\s/g, '');
+      return Object.keys(epgData).find(id => channelName.includes(id) || id.includes(compact)) || '';
+   };
+
    const currentProgram = useMemo(() => {
       if (!selectedChannel || !currentTime) return null;
-      const chName = selectedChannel.name;
-      const epgId = Object.keys(epgData).find(id => chName.includes(id) || id.includes(chName.replace(/\s/g, '')));
+      const epgId = findEpgId(selectedChannel.name);
       if (!epgId) return null;
       const nowStr = currentTime.toISOString().replace(/[-:T]/g, '').slice(0, 14);
-      return epgData[epgId].find(p => {
+      return (epgData[epgId] || []).find(p => {
          const pStart = p.start.split(' ')[0];
          const pStop = p.stop.split(' ')[0];
          return nowStr >= pStart && nowStr <= pStop;
-      });
+      }) || null;
+   }, [selectedChannel, epgData, currentTime]);
+
+   const upcomingPrograms = useMemo(() => {
+      if (!selectedChannel || !currentTime) return [] as EPGProgram[];
+      const epgId = findEpgId(selectedChannel.name);
+      if (!epgId) return [] as EPGProgram[];
+      const list = epgData[epgId] || [];
+      const nowStr = currentTime.toISOString().replace(/[-:T]/g, '').slice(0, 14);
+      return list
+         .filter(p => (p.stop.split(' ')[0] || '') >= nowStr)
+         .slice(0, 8);
    }, [selectedChannel, epgData, currentTime]);
 
    const availableNodes = useMemo(() => {
@@ -125,23 +153,42 @@ export default function LivePage() {
       return channels.filter(ch => ch.name === selectedChannel.name);
    }, [selectedChannel, channels]);
 
+   const nodeCounts = useMemo(() => {
+      const map = new Map<string, number>();
+      channels.forEach(ch => {
+         map.set(ch.name, (map.get(ch.name) || 0) + 1);
+      });
+      return map;
+   }, [channels]);
+
    const handleChannelSelect = (channel: Channel) => {
+      const nodes = channels.filter(ch => ch.name === channel.name);
+      const nodeIdx = nodes.findIndex(ch => ch.url === channel.url);
       setSelectedChannel(channel);
-      const nodeIdx = channels.filter(ch => ch.name === channel.name).findIndex(ch => ch.url === channel.url);
       setActiveUrlIndex(nodeIdx !== -1 ? nodeIdx : 0);
+      setChannelMenuOpen(false);
+   };
+
+   const handleNodeSelect = (nodeIndex: number) => {
+      const node = availableNodes[nodeIndex];
+      if (!node) return;
+      setSelectedChannel(node);
+      setActiveUrlIndex(nodeIndex);
    };
 
    const filteredChannels = useMemo(() => {
       const uniqueMap = new Map<string, Channel>();
-      channels.filter(ch => ch.group === activeCategory && ch.name.toLowerCase().includes(searchQuery.toLowerCase())).forEach(ch => {
-         if (!uniqueMap.has(ch.name)) uniqueMap.set(ch.name, ch);
-      });
+      channels
+         .filter(ch => ch.group === activeCategory && ch.name.toLowerCase().includes(searchQuery.toLowerCase()))
+         .forEach(ch => {
+            if (!uniqueMap.has(ch.name)) uniqueMap.set(ch.name, ch);
+         });
       return Array.from(uniqueMap.values());
    }, [channels, activeCategory, searchQuery]);
 
    if (loading) return (
       <div className="h-screen bg-[#05070a] flex items-center justify-center">
-         <div className="p-10 border border-white/5 rounded-[4rem] bg-white/[0.02] backdrop-blur-3xl flex flex-col items-center gap-8 shadow-2xl">
+         <div className="p-10 border border-white/5 rounded-[4rem] bg-card-bg/[0.02] backdrop-blur-3xl flex flex-col items-center gap-8 shadow-2xl">
             <div className="relative w-24 h-24">
                <div className="absolute inset-0 border-[2px] border-blue-500/10 rounded-full animate-[ping_2s_infinite]"></div>
                <div className="absolute inset-0 border-t-2 border-blue-500 rounded-full animate-spin"></div>
@@ -152,122 +199,194 @@ export default function LivePage() {
    );
 
    return (
-      <div className="h-screen bg-white dark:bg-[#02050a] text-slate-900 dark:text-white flex flex-col font-sans overflow-y-auto lg:overflow-hidden relative selection:bg-rose-600">
-
+      <div className="min-h-dvh lg:h-dvh bg-card-bg dark:bg-[#02050a] text-foreground flex flex-col font-sans overflow-x-hidden overflow-y-auto lg:overflow-hidden relative selection:bg-rose-600">
          <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
             <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-blue-600/10 blur-[200px] animate-pulse"></div>
             <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-rose-600/5 blur-[200px] animate-pulse [animation-delay:3s]"></div>
          </div>
 
-         <header className="h-20 sm:h-24 shrink-0 flex items-center justify-between px-4 sm:px-10 relative z-50">
-            <div className="flex items-center gap-6">
-               <div className="hidden sm:flex items-center gap-8 px-8 py-3 bg-white/[0.03] border border-white/[0.05] rounded-[2rem] backdrop-blur-3xl">
-                  <div className="flex items-center gap-3 text-slate-500 font-black text-[9px] tracking-[.3em] uppercase">
+         <header className="shrink-0 flex items-center justify-between px-4 sm:px-10 py-4 sm:py-6 relative z-50 sticky top-0 bg-card-bg/40 backdrop-blur-3xl border-b border-white/[0.03]">
+            <div className="flex items-center gap-3 sm:gap-6">
+               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-rose-600/15 border border-rose-500/25">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                  <span className="text-[10px] font-black tracking-[.35em] uppercase text-rose-300">Live</span>
+               </div>
+
+               <div className="hidden sm:flex items-center gap-8 px-8 py-3 bg-card-bg/[0.03] border border-white/[0.05] rounded-[2rem] backdrop-blur-3xl">
+                  <div className="flex items-center gap-3 text-slate-400 font-black text-[9px] tracking-[.3em] uppercase">
                      <Clock size={16} className="text-amber-500" />
                      {currentTime && currentTime.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit' })}
                   </div>
-                  <div className="w-px h-6 bg-white/5"></div>
+                  <div className="w-px h-6 bg-card-bg/5"></div>
                   <div className="flex items-center gap-3 text-emerald-400 font-black text-[9px] tracking-[.3em] uppercase">
                      <Wifi size={16} /> 120Gbps Node
                   </div>
                </div>
-               <button className="w-12 h-12 rounded-2xl bg-white/[0.03] border border-white/[0.05] flex items-center justify-center text-slate-500 hover:text-white transition-all"><Settings2 size={20} /></button>
+            </div>
+
+            <div className="flex items-center gap-2">
+               <button
+                  onClick={() => setChannelMenuOpen(true)}
+                  className="lg:hidden w-12 h-12 rounded-2xl bg-card-bg/[0.03] border border-white/[0.05] flex items-center justify-center text-slate-300 hover:text-white transition-all"
+               >
+                  <List size={20} />
+               </button>
             </div>
          </header>
 
-         <main className="lg:h-[calc(100vh-6rem)] flex flex-col lg:flex-row lg:overflow-hidden relative z-10 px-4 sm:px-8 pb-8 gap-4 sm:gap-8">
-            <aside className="w-full lg:w-[280px] xl:w-[320px] shrink-0 flex flex-col gap-6 lg:overflow-hidden">
-               <div className="flex-1 border border-white/[0.04] bg-white/[0.02] backdrop-blur-3xl rounded-3xl lg:rounded-[3rem] flex flex-col overflow-hidden shadow-2xl">
-                  <div className="p-5 lg:p-8 border-b border-white/[0.03] space-y-2 lg:space-y-4 hidden lg:block">
+         <main className="flex-1 min-h-0 flex flex-col lg:flex-row lg:overflow-hidden relative z-10 px-4 sm:px-8 pb-6 sm:pb-8 gap-4 sm:gap-8">
+            {channelMenuOpen && (
+               <div
+                  className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
+                  onClick={() => setChannelMenuOpen(false)}
+               />
+            )}
+            
+            <section className="flex-1 min-h-0 flex flex-col gap-4 sm:gap-8 order-1">
+               <div className="border border-white/[0.04] bg-card-bg/[0.02] backdrop-blur-3xl rounded-3xl lg:rounded-[3rem] overflow-hidden shadow-2xl">
+                  <div className="relative aspect-video bg-black">
+                     <div className="absolute left-4 top-4 z-10 px-3 py-1.5 rounded-full bg-rose-600/20 border border-rose-500/25 text-[10px] font-black tracking-[.35em] uppercase text-rose-200">
+                        Live
+                     </div>
+                     {selectedChannel ? (
+                        <Player url={selectedChannel.url} />
+                     ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                           <div className="flex flex-col items-center gap-3 text-slate-400">
+                              <MonitorPlay size={52} className="opacity-25" />
+                              <div className="text-sm font-bold">채널을 선택해 주세요</div>
+                           </div>
+                        </div>
+                     )}
+                  </div>
+
+                  <div className="p-5 sm:p-8 border-t border-white/[0.04]">
+                     <div className="text-2xl sm:text-3xl font-black tracking-tight">
+                        {selectedChannel?.name || '—'}
+                     </div>
+                     <div className="mt-2 text-sm text-slate-400">
+                        실시간 고화질 스트리밍 방송국
+                     </div>
+                  </div>
+               </div>
+
+               <div className="border border-white/[0.04] bg-black/20 backdrop-blur-3xl rounded-3xl lg:rounded-[3rem] overflow-hidden shadow-2xl">
+                  <div className="p-5 sm:p-8">
                      <div className="flex items-center gap-3">
                         <div className="w-2 h-2 rounded-full bg-rose-500"></div>
-                        <span className="text-[11px] font-black tracking-[.2em] uppercase text-slate-300">Hub Discovery</span>
+                        <div className="text-sm font-black tracking-tight">방송 안내</div>
                      </div>
-                     <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest leading-relaxed">Select a category and explore worldwide broadcast feeds.</p>
-                  </div>
-
-                  <div className="p-3 lg:p-6 flex lg:flex-col gap-2 overflow-x-auto lg:overflow-y-auto custom-scrollbar flex-1 lg:space-y-2 scrollbar-hide">
-                     {categories.map(cat => (
-                        <button
-                           key={cat}
-                           onClick={() => setActiveCategory(cat)}
-                           className={`shrink-0 lg:w-full flex items-center justify-between px-4 lg:px-6 py-3 lg:py-5 rounded-2xl lg:rounded-[1.8rem] transition-all group ${activeCategory === cat
-                              ? 'bg-rose-600 text-white shadow-xl lg:shadow-2xl shadow-rose-600/30 font-black'
-                              : 'text-slate-500 hover:text-white hover:bg-white/[0.04] bg-white/[0.02] lg:bg-transparent'
-                              }`}
-                        >
-                           <div className="flex items-center gap-3 lg:gap-4">
-                              <div className={`w-8 h-8 lg:w-10 lg:h-10 rounded-xl flex items-center justify-center transition-all ${activeCategory === cat ? 'bg-white/20' : 'bg-black/40 group-hover:bg-rose-600/20'}`}>
-                                 {cat.includes('央视') ? <Tv size={16} className="lg:w-[18px] lg:h-[18px]" /> : (cat.includes('卫视') ? <Radio size={16} className="lg:w-[18px] lg:h-[18px]" /> : <MonitorPlay size={16} className="lg:w-[18px] lg:h-[18px]" />)}
-                              </div>
-                              <span className="text-xs lg:text-[13px] tracking-tight whitespace-nowrap">{cat}</span>
-                           </div>
-                           <ChevronRight size={14} className={`hidden lg:block ${activeCategory === cat ? 'opacity-100' : 'opacity-0 group-hover:opacity-40 transition-opacity'}`} />
-                        </button>
-                     ))}
+                     <div className="mt-4 text-sm text-slate-400 leading-relaxed">
+                        현재 선택된 채널은 실시간 방송 중입니다. 네트워크 환경에 따라 로딩 속도가 차이날 수 있습니다. 최적의 시청을 위해 안정적인 네트워크 환경에서 접속해 주세요.
+                     </div>
                   </div>
                </div>
-            </aside>
+            </section>
 
-            <div className="flex-1 flex flex-col lg:flex-row gap-4 sm:gap-8 lg:overflow-hidden">
-               <div className="flex-1 flex flex-col lg:overflow-hidden min-h-[50vh] lg:h-full">
-                  <div className="flex-1 flex flex-col gap-4 sm:gap-8 lg:overflow-hidden bg-black/40 border border-white/[0.04] backdrop-blur-3xl rounded-3xl lg:rounded-[4rem] p-4 sm:p-6 lg:p-10 relative group/p-sec">
-                     <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-                        <div className="space-y-2 sm:space-y-4">
-                           <div className="flex items-center gap-2 bg-rose-500/10 text-rose-500 text-[9px] font-black tracking-[0.4em] uppercase py-1.5 px-4 rounded-full border border-rose-500/20 w-fit">
-                              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
-                              Now Broadcasting
+            <aside
+               className={`lg:w-[360px] xl:w-[380px] shrink-0 flex flex-col lg:overflow-hidden order-2 ${
+                  channelMenuOpen
+                     ? 'fixed inset-y-0 right-0 z-50 w-[86vw] max-w-[420px] translate-x-0'
+                     : 'fixed inset-y-0 right-0 z-50 w-[86vw] max-w-[420px] translate-x-full'
+                  } lg:static lg:z-auto lg:w-[360px] lg:max-w-none lg:translate-x-0 transition-transform duration-300`}
+            >
+               <div className="h-full border border-white/[0.04] bg-[#090a0f]/95 lg:bg-card-bg/[0.02] backdrop-blur-3xl rounded-none lg:rounded-[3rem] flex flex-col overflow-hidden shadow-2xl">
+                  <div className="p-5 sm:p-6 border-b border-white/[0.04] flex items-center justify-between">
+                     <div className="flex items-center gap-3">
+                        <List size={16} className="text-rose-400" />
+                        <span className="text-sm font-black tracking-tight">채널 리스트</span>
+                     </div>
+                     <button
+                        onClick={() => setChannelMenuOpen(false)}
+                        className="lg:hidden w-10 h-10 rounded-2xl bg-black/30 border border-white/[0.06] text-slate-300 hover:text-white flex items-center justify-center"
+                     >
+                        <X size={18} />
+                     </button>
+                  </div>
+
+                  <div className="p-4 sm:p-5 border-b border-white/[0.04] space-y-3">
+                     <div className="relative">
+                        <button
+                           onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
+                           className="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-black/30 border border-white/[0.06] text-sm font-bold text-slate-200 hover:bg-black/40 transition-all"
+                        >
+                           <div className="flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                              <span>{activeCategory || '카테고리 선택'}</span>
                            </div>
-                           <h2 className="text-3xl sm:text-4xl lg:text-6xl font-black tracking-[-0.07em] leading-none uppercase truncate">{selectedChannel?.name}</h2>
-                           <div className="bg-white/5 border border-white/5 p-2 rounded-xl flex items-center gap-2 w-fit">
-                              <Layers size={14} className="text-amber-500" />
-                              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mr-2">Route Index</span>
-                              <div className="flex gap-1.5">
-                                 {availableNodes.map((n, idx) => (
-                                    <button key={idx} onClick={() => { setSelectedChannel(n); setActiveUrlIndex(idx); }} className={`w-8 h-8 rounded-lg font-black text-[10px] transition-all ${activeUrlIndex === idx ? 'bg-amber-500 text-black' : 'bg-white/5 text-slate-600 hover:text-white'}`}>{idx + 1}</button>
+                           <ChevronDown size={16} className={`text-slate-500 transition-transform ${isCategoryDropdownOpen ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {isCategoryDropdownOpen && (
+                           <>
+                              <div className="fixed inset-0 z-10" onClick={() => setIsCategoryDropdownOpen(false)}></div>
+                              <div className="absolute top-full left-0 right-0 mt-2 z-20 max-h-[300px] overflow-y-auto custom-scrollbar bg-[#0f1117]/95 backdrop-blur-xl border border-white/[0.06] rounded-2xl shadow-2xl p-2 flex flex-col gap-1">
+                                 {categories.map(cat => (
+                                    <button
+                                       key={cat}
+                                       onClick={() => {
+                                          setActiveCategory(cat);
+                                          setIsCategoryDropdownOpen(false);
+                                       }}
+                                       className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                                          activeCategory === cat
+                                             ? 'bg-rose-600/20 text-rose-400'
+                                             : 'text-slate-300 hover:bg-white/5 hover:text-white'
+                                       }`}
+                                    >
+                                       {cat}
+                                    </button>
                                  ))}
                               </div>
-                           </div>
-                        </div>
-                        <div className="bg-white/[0.02] border border-white/5 rounded-2xl lg:rounded-[2.5rem] p-4 lg:p-8 sm:min-w-[280px] lg:min-w-[340px] flex items-center gap-4 lg:gap-6 group/epg cursor-default">
-                           <div className="w-10 h-10 lg:w-14 lg:h-14 rounded-xl lg:rounded-3xl bg-amber-500/10 flex items-center justify-center text-amber-500 shrink-0"><CalendarRange size={20} className="lg:w-6 lg:h-6" /></div>
-                           <div className="flex-1 min-w-0">
-                              {epgLoading ? <div className="h-4 w-32 bg-white/5 animate-pulse rounded-full"></div> : currentProgram ? (
-                                 <div className="space-y-1">
-                                    <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest">{currentProgram.start.slice(8, 10)}:{currentProgram.start.slice(10, 12)} - {currentProgram.stop.slice(8, 10)}:{currentProgram.stop.slice(10, 12)}</span>
-                                    <p className="text-lg font-black leading-tight truncate max-w-[200px]">{currentProgram.title}</p>
-                                 </div>
-                              ) : <span className="text-sm font-bold text-slate-700 italic">No Schedule Found</span>}
-                           </div>
-                        </div>
+                           </>
+                        )}
                      </div>
-                     <div className="relative flex-1 bg-black rounded-2xl lg:rounded-[4rem] overflow-hidden shadow-[0_30px_50px_rgba(0,0,0,0.8)] lg:shadow-[0_60px_100px_rgba(0,0,0,1)] ring-1 ring-white/10 group/player-box min-h-[250px]">
-                        {selectedChannel && <Player key={selectedChannel.url} url={selectedChannel.url} />}
+
+                     <div className="relative">
+                        <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
+                        <input
+                           value={searchQuery}
+                           onChange={(e) => setSearchQuery(e.target.value)}
+                           placeholder="채널 검색"
+                           className="w-full pl-11 pr-4 py-3 rounded-2xl bg-black/30 border border-white/[0.06] text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-rose-600/40"
+                        />
                      </div>
                   </div>
-               </div>
-               <div className="w-full lg:w-[380px] xl:w-[450px] shrink-0 flex flex-col gap-4 sm:gap-6 lg:overflow-hidden pb-10 lg:pb-0 h-[400px] lg:h-auto">
-                  <div className="p-4 sm:p-6 lg:p-10 bg-white/[0.02] border border-white/[0.04] backdrop-blur-3xl rounded-3xl lg:rounded-[4rem] flex-1 flex flex-col overflow-hidden shadow-2xl">
-                     <div className="space-y-4 lg:space-y-6 mb-6 lg:mb-10 shrink-0">
-                        <div className="flex items-center justify-between"><span className="text-[10px] lg:text-[11px] font-black tracking-[.4em] uppercase text-rose-500 flex items-center gap-2"><List size={16} /> Hub Navigator</span><Filter size={18} className="text-slate-500 hidden sm:block" /></div>
-                        <div className="relative group"><Search className="absolute left-4 lg:left-6 top-1/2 -translate-y-1/2 text-slate-600 transition-colors group-focus-within:text-rose-500" size={18} /><input type="text" placeholder="FILTER STATIONS" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-black/40 border border-white/[0.05] rounded-[1.5rem] lg:rounded-[2rem] py-3 lg:py-5 pl-12 lg:pl-16 pr-6 lg:pr-8 text-[10px] lg:text-[11px] font-black focus:outline-none transition-all placeholder:text-slate-700 shadow-inner" /></div>
-                     </div>
-                     <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 lg:space-y-4 pr-1 lg:pr-2">
-                        {filteredChannels.map((ch, idx) => {
-                           const isS = selectedChannel?.name === ch.name;
+
+                  <div className="flex-1 overflow-y-auto custom-scrollbar p-3 sm:p-4">
+                     <div className="flex flex-col gap-2">
+                        {filteredChannels.map(ch => {
+                           const isActive = selectedChannel?.name === ch.name;
                            return (
-                              <button key={idx} onClick={() => handleChannelSelect(ch)} className={`w-full group/i flex items-center gap-3 lg:gap-6 p-3 lg:p-6 rounded-[1.5rem] lg:rounded-[2.8rem] transition-all relative overflow-hidden border ${isS ? 'bg-rose-600 border-rose-400 shadow-[0_10px_30px_-5px_rgba(225,29,72,0.4)] lg:translate-x-1' : 'bg-white/[0.01] border-white/[0.03] hover:bg-white/[0.05] hover:border-white/[0.1] hover:scale-[1.02]'}`}>
-                                 <div className={`w-10 h-10 lg:w-14 lg:h-14 rounded-xl lg:rounded-3xl flex items-center justify-center shrink-0 transition-transform duration-700 ${isS ? 'bg-white/20' : 'bg-black/40 text-slate-700 group-hover/i:text-rose-500'}`}>{isS ? <Volume2 size={20} className="lg:w-6 lg:h-6" /> : <span className="text-xs lg:text-sm font-black opacity-30 italic">{String(idx + 1).padStart(2, '0')}</span>}</div>
-                                 <div className="flex-1 text-left min-w-0"><p className={`font-black text-base lg:text-xl tracking-tighter truncate ${isS ? 'text-white' : 'text-slate-400 group-hover/i:text-slate-200'}`}>{ch.name}</p><span className={`text-[8px] lg:text-[9px] font-black uppercase tracking-widest ${isS ? 'text-rose-200' : 'text-slate-800'}`}>HD Source Approved</span></div>
-                                 {isS && <div className="w-1.5 h-1.5 lg:w-2 lg:h-2 rounded-full bg-white shadow-[0_0_10px_white]"></div>}
+                              <button
+                                 key={`${ch.group}-${ch.name}`}
+                                 onClick={() => handleChannelSelect(ch)}
+                                 className={`w-full text-left p-3 rounded-2xl border transition-all flex items-center gap-3 ${isActive
+                                    ? 'bg-rose-600/20 border-rose-500/30 text-white'
+                                    : 'bg-black/20 border-white/[0.06] text-slate-300 hover:text-white hover:bg-black/30'
+                                    }`}
+                              >
+                                 <div className="w-12 h-12 rounded-2xl overflow-hidden bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+                                    {ch.logo ? (
+                                       <img src={ch.logo} alt={ch.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                       <MonitorPlay size={18} className="text-slate-500" />
+                                    )}
+                                 </div>
+                                 <div className="min-w-0 flex-1">
+                                    <div className="text-sm font-black truncate">{ch.name}</div>
+                                    <div className="mt-1 text-[11px] text-slate-500 truncate">지금 온라인 방송 중</div>
+                                 </div>
+                                 <div className="shrink-0 text-[10px] font-black tracking-wider text-slate-500">LIVE</div>
                               </button>
                            );
                         })}
                      </div>
                   </div>
                </div>
-            </div>
+            </aside>
          </main>
+
          <style jsx global>{`
             .custom-scrollbar::-webkit-scrollbar { width: 3px; }
             .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(225, 29, 72, 0.1); border-radius: 10px; }

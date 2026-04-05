@@ -28,8 +28,25 @@ const SERVER_ENDPOINTS = [
 
 const ENDPOINTS = isClient ? CLIENT_ENDPOINTS : SERVER_ENDPOINTS;
 
-// 빠른 로딩을 위해 홈화면에서는 2개 API만 사용 (FFZY=0, Guangsu=1)
-const FAST_MODE_INDICES = [0, 1];
+// Wsyzy(3)를 1순위로 두고, 홈/빠른 모드에서도 우선 사용
+const PROVIDER_PRIORITY_INDICES = [3, 0, 1, 2, 4, 5, 6];
+
+// 빠른 로딩을 위해 홈화면에서는 2개 API만 사용
+const FAST_MODE_INDICES = [3, 0];
+
+function getRequestIndices(typeId?: number, fastMode = false): number[] {
+    const baseOrder = fastMode ? FAST_MODE_INDICES : PROVIDER_PRIORITY_INDICES;
+
+    if (!typeId) return baseOrder;
+
+    const mappedIds = CATEGORY_MAP[typeId];
+    if (!mappedIds) return baseOrder;
+
+    const filtered = baseOrder.filter(idx => mappedIds[idx] !== undefined);
+    if (filtered.length > 0) return filtered;
+
+    return PROVIDER_PRIORITY_INDICES.filter(idx => mappedIds[idx] !== undefined);
+}
 
 // ─── vod_id 접두사로 출처 API 식별 ──────────────────────────────────────────
 function prefixVodItems(items: VodItem[], apiIndex: number): VodItem[] {
@@ -106,7 +123,7 @@ const STATIC_CATEGORIES: CategoryItem[] = [
     { type_id: 10, type_pid: 1,  type_name: '恐怖片' },
     { type_id: 11, type_pid: 1,  type_name: '剧情片' },
     { type_id: 12, type_pid: 1,  type_name: '战争片' },
-    { type_id: 20, type_pid: 1,  type_name: '记录片' },
+    { type_id: 20, type_pid: 1,  type_name: '纪录片' },
     { type_id: 34, type_pid: 1,  type_name: '伦理片' },
 
     // 드라마 하위
@@ -138,7 +155,42 @@ const STATIC_CATEGORIES: CategoryItem[] = [
 ];
 
 export async function getCategories(): Promise<CategoryItem[]> {
-    return STATIC_CATEGORIES;
+    try {
+        const base = ENDPOINTS[3];
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+        const res = await fetch(`${base}?ac=detail&pg=1`, { signal: controller.signal, cache: 'no-store' });
+        clearTimeout(timeoutId);
+
+        if (!res.ok) return STATIC_CATEGORIES;
+
+        const data = await res.json();
+        const classes = Array.isArray(data?.class) ? data.class : [];
+        if (classes.length === 0) return STATIC_CATEGORIES;
+
+        const nameById = new Map<number, string>();
+        classes.forEach((c: any) => {
+            const id = Number(c?.type_id);
+            const name = typeof c?.type_name === 'string' ? c.type_name.trim() : '';
+            if (Number.isFinite(id) && name) nameById.set(id, name);
+        });
+
+        if (nameById.size === 0) return STATIC_CATEGORIES;
+
+        return STATIC_CATEGORIES.map(c => ({
+            ...c,
+            type_name: nameById.get(c.type_id) ?? c.type_name,
+        }));
+    } catch {
+        return STATIC_CATEGORIES;
+    }
+}
+
+export function getSubCategoryIds(parentId: number): number[] {
+    return STATIC_CATEGORIES
+        .filter(c => c.type_pid === parentId)
+        .map(c => c.type_id);
 }
 
 // ─── 타임아웃 fetch 래퍼 ──────────────────────────────────────────────────
@@ -160,10 +212,11 @@ function fetchTypeAcrossAPIs(
     fastMode = false,
     year?: string
 ): Promise<{ list: VodItem[]; pagecount: number; total: number } | null>[] {
-    const indices = fastMode ? FAST_MODE_INDICES : ENDPOINTS.map((_, i) => i);
+    const mappedIds = CATEGORY_MAP[typeId];
+    const indices = getRequestIndices(typeId, fastMode);
+
     return indices.map((index) => {
         const base = ENDPOINTS[index];
-        const mappedIds = CATEGORY_MAP[typeId];
         const targetTypeId = mappedIds ? mappedIds[index] : typeId;
         if (targetTypeId === undefined || !base) return Promise.resolve(null);
 
@@ -195,7 +248,7 @@ export async function getVideoList(
 ): Promise<{ list: VodItem[]; pagecount: number; total: number }> {
     try {
         let promises: Promise<{ list: VodItem[]; pagecount: number; total: number } | null>[] = [];
-        const activeIndices = fastMode ? FAST_MODE_INDICES : ENDPOINTS.map((_, i) => i);
+        const activeIndices = getRequestIndices(undefined, fastMode);
 
         if (!typeId) {
             promises = activeIndices.map((index) => {
@@ -286,7 +339,9 @@ export async function searchVideos(
     page: number = 1
 ): Promise<{ list: VodItem[]; pagecount: number; total: number }> {
     try {
-        const promises = ENDPOINTS.map((base, index) => {
+        const indices = getRequestIndices(undefined, false);
+        const promises = indices.map((index) => {
+            const base = ENDPOINTS[index];
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 5000);
 

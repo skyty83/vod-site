@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+
+  /* Color Variables for Theme Switching */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card-bg: var(--card-bg);
+  --color-card-border: var(--card-border);
+}
+
+@layer base {
+  :root {
+    --background: #02050a;
+    /* Deep Black */
+    --foreground: #f1f5f9;
+    /* Slate 100 */
+    --card-bg: #0f172a;
+    /* Slate 900 */
+    --card-border: #1e293b;
+  }
+
+  .dark {
+    --background: #02050a;
+    /* Deep Black */
+    --foreground: #f1f5f9;
+    /* Slate 100 */
+    --card-bg: #0f172a;
+    /* Slate 900 */
+    --card-border: #1e293b;
+    /* Slate 800 */
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    min-height: 100vh;
+    background-color: var(--background);
+    color: var(--foreground);
+    transition:
+      background-color 0.4s ease,
+      color 0.4s ease;
+  }
+}
+
+/* Custom scrollbar hide utility since standard Tailwind no-scrollbar plugin needs installation sometimes */
+@utility scrollbar-hide {
+  -ms-overflow-style: none;
+  /* IE and Edge */
+  scrollbar-width: none;
+
+  /* Firefox */
+  &::-webkit-scrollbar {
+    display: none;
+    /* Chrome, Safari and Opera */
+  }
+}

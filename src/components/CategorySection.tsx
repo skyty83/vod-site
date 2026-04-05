@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { VodItem } from '@/types';
-import { getVideoList } from '@/lib/api';
+import { getVideoList, getSubCategoryIds } from '@/lib/api';
 import VideoCard from './VideoCard';
 import Link from 'next/link';
 import { ChevronRight, Clock, TrendingUp } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface CategorySectionProps {
   typeId: number;
@@ -16,24 +17,18 @@ type SortMode = 'recent' | 'hot';
 
 function SkeletonCard() {
   return (
-    <div className="bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shrink-0 h-full">
-      <div className="bg-slate-200 dark:bg-slate-800 animate-pulse aspect-[3/4] w-full" />
+    <div className="bg-card-bg border border-card-border rounded-2xl overflow-hidden shrink-0 h-full">
+      <div className="bg-card-bg/10 animate-pulse aspect-[3/4] w-full" />
       <div className="p-4 flex flex-col gap-3">
-        <div className="bg-slate-200 dark:bg-slate-800 animate-pulse h-4 rounded w-full" />
-        <div className="bg-slate-200 dark:bg-slate-800 animate-pulse h-3 rounded w-2/3" />
+        <div className="bg-card-bg/10 animate-pulse h-4 rounded w-full" />
+        <div className="bg-card-bg/10 animate-pulse h-3 rounded w-2/3" />
       </div>
     </div>
   );
 }
 
-const SUB_CATS: Record<number, number[]> = {
-  1: [6, 7, 8, 9, 10, 11, 12, 20],        // 영화
-  2: [13, 14, 15, 16, 21, 22, 23, 24],    // 연속극
-  3: [25, 26, 27, 28],                    // 예능
-  4: [29, 30, 31, 32],                    // 애니
-};
-
 export default function CategorySection({ typeId, typeName }: CategorySectionProps) {
+  const { t } = useTranslation();
   const [videos, setVideos] = useState<VodItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortMode, setSortMode] = useState<SortMode>('recent');
@@ -58,7 +53,8 @@ export default function CategorySection({ typeId, typeName }: CategorySectionPro
 
     const fetchVideos = async () => {
       try {
-        const subIds = SUB_CATS[typeId] || [typeId];
+        const subIds = getSubCategoryIds(typeId);
+        if (subIds.length === 0) subIds.push(typeId);
 
         // Fetch up to 10 items from multiple sub-categories for a diverse mix
         const promises = subIds.slice(0, 5).map(sid => getVideoList(sortMode === 'hot' ? 2 : 1, sid, true));
@@ -94,30 +90,31 @@ export default function CategorySection({ typeId, typeName }: CategorySectionPro
   }, [typeId, sortMode, isVisible]);
 
   const sortButtons: { mode: SortMode; icon: React.ReactNode; label: string }[] = [
-    { mode: 'recent', icon: <Clock size={12} />, label: '最新' },
-    { mode: 'hot', icon: <TrendingUp size={12} />, label: '热播' },
+    { mode: 'recent', icon: <Clock size={12} />, label: t('sort.recent') },
+    { mode: 'hot', icon: <TrendingUp size={12} />, label: t('sort.hot') },
   ];
 
   return (
     <section id={`cat-section-${typeId}`} className="group/section last:pb-10">
       <div className="flex items-center justify-between mb-8 sm:mb-10">
         <div className="flex items-center gap-4">
-          <Link href={`/?cat=${typeId}`} className="flex items-center gap-2 group/title">
-            <span className="w-2.5 h-8 sm:h-10 bg-gradient-to-b from-blue-500 to-rose-500 rounded-full shadow-lg shadow-blue-500/20"></span>
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-slate-900 dark:text-white group-hover/title:text-blue-500 transition-all">
+          <Link href={`/?cat=${typeId}`} className="flex items-center gap-2 group/title relative">
+            <div className="absolute -inset-2 bg-gradient-to-r from-blue-600 to-rose-600 opacity-0 group-hover/title:opacity-20 blur-xl transition-opacity duration-500 rounded-full"></div>
+            <span className="w-2 h-8 sm:h-10 bg-gradient-to-b from-blue-500 via-purple-500 to-rose-500 rounded-full shadow-[0_0_15px_rgba(59,130,246,0.6)] group-hover/title:shadow-[0_0_25px_rgba(236,72,153,0.8)] transition-shadow duration-500"></span>
+            <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-white group-hover/title:text-transparent group-hover/title:bg-clip-text group-hover/title:bg-gradient-to-r group-hover/title:from-blue-400 group-hover/title:via-purple-400 group-hover/title:to-rose-400 group-hover/title:animate-gradient-x transition-all duration-500">
               {typeName}
             </h2>
-            <ChevronRight size={28} className="text-slate-400 group-hover/title:translate-x-1.5 group-hover/title:text-blue-500 transition-all hidden sm:block" />
+            <ChevronRight size={32} className="text-slate-500 group-hover/title:translate-x-2 group-hover/title:text-rose-400 transition-all duration-500 hidden sm:block" />
           </Link>
 
-          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl p-1 ml-4 hidden md:flex">
+          <div className="flex items-center gap-1 bg-[#11141d]/80 backdrop-blur-md border border-white/5 rounded-xl p-1 ml-4 hidden md:flex shadow-inner shadow-black/50">
             {sortButtons.map(({ mode, icon, label }) => (
               <button
                 key={mode}
                 onClick={() => setSortMode(mode)}
                 className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-black transition-all cursor-pointer ${sortMode === mode
-                  ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xl'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  ? 'bg-card-bg dark:bg-slate-800 text-foreground shadow-xl'
+                  : 'text-slate-400 hover:text-foreground dark:hover:text-white'
                   }`}
               >
                 {icon}
@@ -129,9 +126,11 @@ export default function CategorySection({ typeId, typeName }: CategorySectionPro
 
         <Link
           href={`/?cat=${typeId}`}
-          className="text-sm font-black bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-6 py-2.5 rounded-full hover:bg-blue-600 hover:text-white hover:border-blue-600 dark:hover:bg-blue-500 dark:hover:border-blue-500 transition-all shadow-md"
+          className="relative group/btn text-sm font-black px-6 py-2.5 rounded-full overflow-hidden transition-all shadow-[0_0_20px_rgba(0,0,0,0.5)]"
         >
-          查看全部
+          <div className="absolute inset-0 bg-[#11141d] border border-white/10 rounded-full z-0 group-hover/btn:bg-transparent transition-colors duration-300"></div>
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-purple-600 to-rose-600 opacity-0 group-hover/btn:opacity-100 group-hover/btn:animate-gradient-x transition-opacity duration-500 z-0"></div>
+          <span className="relative z-10 text-slate-300 group-hover/btn:text-white transition-colors duration-300">{t('common.viewAll')}</span>
         </Link>
       </div>
 

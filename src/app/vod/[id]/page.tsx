@@ -27,7 +27,7 @@ export default async function VodDetailPage({ params }: Props) {
   if (!vod) notFound();
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans transition-colors duration-300 flex flex-col">
+    <div className="min-h-screen bg-background text-foreground font-sans transition-colors duration-300 flex flex-col">
       <VodDetailClient vod={vod} />
     </div>
   );

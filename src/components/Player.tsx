@@ -7,9 +7,10 @@ import Hls from 'hls.js';
 interface PlayerProps {
   url: string;
   autoplay?: boolean;
+  isLive?: boolean;
 }
 
-export default function Player({ url, autoplay = true }: PlayerProps) {
+export default function Player({ url, autoplay = true, isLive = true }: PlayerProps) {
   const artRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -22,11 +23,20 @@ export default function Player({ url, autoplay = true }: PlayerProps) {
         url: url,
         autoplay: autoplay,
         volume: 0.5,
-        isLive: true,
+        isLive: isLive,
         muted: false,
         theme: '#e11d48',
         fullscreen: true,
+        fullscreenWeb: true,
+        pip: true,
         setting: true,
+        playbackRate: true,
+        aspectRatio: true,
+        hotkey: true,
+        playsInline: true,
+        autoSize: false,
+        autoMini: true,
+        miniProgressBar: true,
         customType: {
           m3u8: function (video: HTMLMediaElement, url: string, art: Artplayer) {
             if (Hls.isSupported()) {
@@ -67,10 +77,20 @@ export default function Player({ url, autoplay = true }: PlayerProps) {
 
     return () => {
       if (hls) {
+        hls.stopLoad();
+        hls.detachMedia();
         hls.destroy();
+        hls = null;
       }
       if (art) {
-        art.destroy(false);
+        if (art.video) {
+          art.video.muted = true;
+          art.video.pause();
+          art.video.removeAttribute('src');
+          art.video.load();
+        }
+        art.destroy(true);
+        art = null;
       }
     };
   }, [url]);

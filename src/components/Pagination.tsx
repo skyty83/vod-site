@@ -38,7 +38,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
         <button
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          className="w-10 h-10 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 flex items-center justify-center transition-all hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:hover:bg-transparent shadow-sm mx-1"
+          className="w-10 h-10 rounded-xl bg-card-bg border border-card-border text-slate-400 dark:text-slate-400 flex items-center justify-center transition-all hover:bg-card-bg/5 disabled:opacity-40 disabled:hover:bg-transparent shadow-sm mx-1"
         >
           <ChevronLeft size={18} />
         </button>
@@ -46,7 +46,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
         {/* Pages */}
         {getPages().map((page, i) =>
           page === '...' ? (
-            <span key={`ellipsis-${i}`} className="px-1.5 text-slate-400 dark:text-slate-500 font-bold">…</span>
+            <span key={`ellipsis-${i}`} className="px-1.5 text-slate-400 dark:text-slate-400 font-bold">…</span>
           ) : (
             <button
               key={page}
@@ -54,7 +54,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
               className={`w-10 h-10 rounded-xl text-sm font-bold transition-all shadow-sm ${
                 currentPage === page
                   ? 'bg-gradient-to-br from-blue-500 to-rose-500 text-white shadow-blue-500/30 shadow-md border-transparent'
-                  : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                  : 'bg-card-bg border border-card-border text-slate-300 hover:bg-card-bg/5 hover:border-white/20 dark:hover:border-slate-700'
               }`}
             >
               {page}
@@ -66,14 +66,14 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
         <button
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className="w-10 h-10 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 flex items-center justify-center transition-all hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:hover:bg-transparent shadow-sm mx-1"
+          className="w-10 h-10 rounded-xl bg-card-bg border border-card-border text-slate-400 dark:text-slate-400 flex items-center justify-center transition-all hover:bg-card-bg/5 disabled:opacity-40 disabled:hover:bg-transparent shadow-sm mx-1"
         >
           <ChevronRight size={18} />
         </button>
       </div>
 
       {/* Page Info */}
-      <div className="sm:ml-4 text-xs font-medium text-slate-500 dark:text-slate-400 bg-white/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 px-4 py-2 rounded-xl shadow-sm backdrop-blur-sm">
+      <div className="sm:ml-4 text-xs font-medium text-slate-400 bg-card-bg/50 border border-card-border px-4 py-2 rounded-xl shadow-sm backdrop-blur-sm">
         {currentPage} <span className="mx-1 opacity-50">/</span> {totalPages} 页
       </div>
     </div>
