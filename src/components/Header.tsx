@@ -15,7 +15,6 @@ const MAIN_NAV = [
   { id: 36, key: 'short', icon: <Film size={16} />, href: '/?cat=36' },
   { id: 48, key: 'sports', icon: <Trophy size={16} />, href: '/?cat=48' },
   { id: 777, key: 'live', icon: <MonitorPlay size={16} />, href: '/live' },
-  { id: 888, key: 'music', icon: <Music size={16} />, href: '/music' },
 ];
 
 export default function Header() {
