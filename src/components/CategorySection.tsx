@@ -16,11 +16,27 @@ type SortMode = 'recent' | 'hot';
 
 function SkeletonCard() {
   return (
-    <div className="bg-card-bg border border-card-border rounded-2xl overflow-hidden shrink-0 h-full">
-      <div className="bg-card-bg/10 animate-pulse aspect-[3/4] w-full" />
-      <div className="p-4 flex flex-col gap-3">
-        <div className="bg-card-bg/10 animate-pulse h-4 rounded w-full" />
-        <div className="bg-card-bg/10 animate-pulse h-3 rounded w-2/3" />
+    <div className="relative rounded-2xl overflow-hidden shrink-0 h-full">
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/15 via-purple-500/10 to-rose-500/15" />
+      <div className="absolute -top-24 -left-24 w-56 h-56 bg-blue-500/10 blur-3xl rounded-full animate-pulse" />
+      <div className="absolute -bottom-24 -right-24 w-56 h-56 bg-rose-500/10 blur-3xl rounded-full animate-pulse" />
+
+      <div className="relative p-[1px] rounded-2xl bg-white/10">
+        <div className="relative bg-card-bg/80 rounded-2xl overflow-hidden border border-white/5 shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
+          <div className="relative aspect-[3/4] w-full bg-black/20">
+            <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-white/5 animate-pulse" />
+          </div>
+
+          <div className="p-4 flex flex-col gap-3">
+            <div className="h-4 rounded-lg bg-white/5 animate-pulse" />
+            <div className="h-3 rounded-lg bg-white/5 w-2/3 animate-pulse" />
+            <div className="flex items-center gap-2 pt-1">
+              <div className="h-3 rounded-md bg-white/5 w-10 animate-pulse" />
+              <div className="h-3 rounded-md bg-white/5 w-14 animate-pulse" />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
