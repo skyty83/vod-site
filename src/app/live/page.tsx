@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { Search, MonitorPlay, Tv, Wifi, Radio, List, Clock, X, ChevronDown } from 'lucide-react';
+import { Search, MonitorPlay, Wifi, List, Clock, X, ChevronDown } from 'lucide-react';
 import Player from '@/components/Player';
 
 interface Channel {
@@ -11,34 +11,16 @@ interface Channel {
    logo?: string;
 }
 
-interface EPGProgram {
-   start: string;
-   stop: string;
-   title: string;
-   channel: string;
-}
 
 export default function LivePage() {
    const [channels, setChannels] = useState<Channel[]>([]);
    const [categories, setCategories] = useState<string[]>([]);
    const [activeCategory, setActiveCategory] = useState<string>('');
    const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
-   const [activeUrlIndex, setActiveUrlIndex] = useState<number>(0);
    const [channelMenuOpen, setChannelMenuOpen] = useState(false);
    const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
    const [searchQuery, setSearchQuery] = useState('');
    const [loading, setLoading] = useState(true);
-   const [currentTime, setCurrentTime] = useState<Date | null>(null);
-
-   // EPG Data
-   const [epgData, setEpgData] = useState<Record<string, EPGProgram[]>>({});
-   const [epgLoading, setEpgLoading] = useState(false);
-
-   useEffect(() => {
-      setCurrentTime(new Date());
-      const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-      return () => clearInterval(timer);
-   }, []);
 
    useEffect(() => {
       const fetchData = async () => {
@@ -80,100 +62,17 @@ export default function LivePage() {
             if (sortedGroups.length > 0) setActiveCategory(sortedGroups[0]);
             if (parsedChannels.length > 0) setSelectedChannel(parsedChannels[0]);
             setLoading(false);
-            fetchEPG();
-         } catch (err) {
+         } catch {
             setLoading(false);
          }
       };
       fetchData();
    }, []);
 
-   const fetchEPG = async () => {
-      setEpgLoading(true);
-      try {
-         const res = await fetch('https://live.fanmingming.cn/e.xml');
-         const text = await res.text();
-         const parser = new DOMParser();
-         const xmlDoc = parser.parseFromString(text, "text/xml");
-         const programmes = xmlDoc.getElementsByTagName("programme");
-         const epgMap: Record<string, EPGProgram[]> = {};
-         for (let i = 0; i < programmes.length; i++) {
-            const p = programmes[i];
-            const channelId = p.getAttribute("channel") || "";
-            const title = p.getElementsByTagName("title")[0]?.textContent || "";
-            const start = p.getAttribute("start") || "";
-            const stop = p.getAttribute("stop") || "";
-            if (!epgMap[channelId]) epgMap[channelId] = [];
-            epgMap[channelId].push({ start, stop, title, channel: channelId });
-         }
-         setEpgData(epgMap);
-         setEpgLoading(false);
-      } catch (err) {
-         setEpgLoading(false);
-      }
-   };
-
-   const fmtEpg = (ts?: string) => {
-      if (!ts) return '';
-      const raw = ts.split(' ')[0] || '';
-      if (raw.length < 12) return '';
-      return `${raw.slice(8, 10)}:${raw.slice(10, 12)}`;
-   };
-
-   const findEpgId = (channelName: string) => {
-      const compact = channelName.replace(/\s/g, '');
-      return Object.keys(epgData).find(id => channelName.includes(id) || id.includes(compact)) || '';
-   };
-
-   const currentProgram = useMemo(() => {
-      if (!selectedChannel || !currentTime) return null;
-      const epgId = findEpgId(selectedChannel.name);
-      if (!epgId) return null;
-      const nowStr = currentTime.toISOString().replace(/[-:T]/g, '').slice(0, 14);
-      return (epgData[epgId] || []).find(p => {
-         const pStart = p.start.split(' ')[0];
-         const pStop = p.stop.split(' ')[0];
-         return nowStr >= pStart && nowStr <= pStop;
-      }) || null;
-   }, [selectedChannel, epgData, currentTime]);
-
-   const upcomingPrograms = useMemo(() => {
-      if (!selectedChannel || !currentTime) return [] as EPGProgram[];
-      const epgId = findEpgId(selectedChannel.name);
-      if (!epgId) return [] as EPGProgram[];
-      const list = epgData[epgId] || [];
-      const nowStr = currentTime.toISOString().replace(/[-:T]/g, '').slice(0, 14);
-      return list
-         .filter(p => (p.stop.split(' ')[0] || '') >= nowStr)
-         .slice(0, 8);
-   }, [selectedChannel, epgData, currentTime]);
-
-   const availableNodes = useMemo(() => {
-      if (!selectedChannel) return [];
-      return channels.filter(ch => ch.name === selectedChannel.name);
-   }, [selectedChannel, channels]);
-
-   const nodeCounts = useMemo(() => {
-      const map = new Map<string, number>();
-      channels.forEach(ch => {
-         map.set(ch.name, (map.get(ch.name) || 0) + 1);
-      });
-      return map;
-   }, [channels]);
 
    const handleChannelSelect = (channel: Channel) => {
-      const nodes = channels.filter(ch => ch.name === channel.name);
-      const nodeIdx = nodes.findIndex(ch => ch.url === channel.url);
       setSelectedChannel(channel);
-      setActiveUrlIndex(nodeIdx !== -1 ? nodeIdx : 0);
       setChannelMenuOpen(false);
-   };
-
-   const handleNodeSelect = (nodeIndex: number) => {
-      const node = availableNodes[nodeIndex];
-      if (!node) return;
-      setSelectedChannel(node);
-      setActiveUrlIndex(nodeIndex);
    };
 
    const filteredChannels = useMemo(() => {
@@ -205,36 +104,16 @@ export default function LivePage() {
             <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-rose-600/5 blur-[200px] animate-pulse [animation-delay:3s]"></div>
          </div>
 
-         <header className="shrink-0 flex items-center justify-between px-4 sm:px-10 py-4 sm:py-6 relative z-50 sticky top-0 bg-card-bg/40 backdrop-blur-3xl border-b border-white/[0.03]">
-            <div className="flex items-center gap-3 sm:gap-6">
-               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-rose-600/15 border border-rose-500/25">
-                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                  <span className="text-[10px] font-black tracking-[.35em] uppercase text-rose-300">Live</span>
-               </div>
+         <div className="flex items-center mt-10 gap-2">
+            <button
+               onClick={() => setChannelMenuOpen(true)}
+               className="lg:hidden w-12 h-12 rounded-2xl bg-card-bg/[0.03] border border-white/[0.05] flex items-center justify-center text-slate-300 hover:text-white transition-all"
+            >
+               <List size={20} />
+            </button>
+         </div>
 
-               <div className="hidden sm:flex items-center gap-8 px-8 py-3 bg-card-bg/[0.03] border border-white/[0.05] rounded-[2rem] backdrop-blur-3xl">
-                  <div className="flex items-center gap-3 text-slate-400 font-black text-[9px] tracking-[.3em] uppercase">
-                     <Clock size={16} className="text-amber-500" />
-                     {currentTime && currentTime.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit' })}
-                  </div>
-                  <div className="w-px h-6 bg-card-bg/5"></div>
-                  <div className="flex items-center gap-3 text-emerald-400 font-black text-[9px] tracking-[.3em] uppercase">
-                     <Wifi size={16} /> 120Gbps Node
-                  </div>
-               </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-               <button
-                  onClick={() => setChannelMenuOpen(true)}
-                  className="lg:hidden w-12 h-12 rounded-2xl bg-card-bg/[0.03] border border-white/[0.05] flex items-center justify-center text-slate-300 hover:text-white transition-all"
-               >
-                  <List size={20} />
-               </button>
-            </div>
-         </header>
-
-         <main className="flex-1 min-h-0 flex flex-col lg:flex-row lg:overflow-hidden relative z-10 px-4 sm:px-8 pb-6 sm:pb-8 gap-4 sm:gap-8">
+         <main className="flex-1 min-h-0 flex flex-col lg:flex-row lg:overflow-hidden relative z-10  mt-10 w-full max-w-[1200px] mx-auto px-4 sm:px-6 pb-5 sm:pb-6 gap-4 sm:gap-6">
             {channelMenuOpen && (
                <div
                   className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
@@ -242,8 +121,8 @@ export default function LivePage() {
                />
             )}
             
-            <section className="flex-1 min-h-0 flex flex-col gap-4 sm:gap-8 order-1">
-               <div className="border border-white/[0.04] bg-card-bg/[0.02] backdrop-blur-3xl rounded-3xl lg:rounded-[3rem] overflow-hidden shadow-2xl">
+            <section className="flex-1 min-h-0 flex flex-col gap-4 sm:gap-6 order-1">
+               <div className="border border-white/[0.04] bg-card-bg/[0.02] backdrop-blur-3xl rounded-2xl lg:rounded-3xl overflow-hidden shadow-2xl">
                   <div className="relative aspect-video bg-black">
                      <div className="absolute left-4 top-4 z-10 px-3 py-1.5 rounded-full bg-rose-600/20 border border-rose-500/25 text-[10px] font-black tracking-[.35em] uppercase text-rose-200">
                         Live
@@ -260,8 +139,8 @@ export default function LivePage() {
                      )}
                   </div>
 
-                  <div className="p-5 sm:p-8 border-t border-white/[0.04]">
-                     <div className="text-2xl sm:text-3xl font-black tracking-tight">
+                  <div className="p-4 sm:p-6 border-t border-white/[0.04]">
+                     <div className="text-xl sm:text-2xl font-black tracking-tight">
                         {selectedChannel?.name || '—'}
                      </div>
                      <div className="mt-2 text-sm text-slate-400">
@@ -270,8 +149,8 @@ export default function LivePage() {
                   </div>
                </div>
 
-               <div className="border border-white/[0.04] bg-black/20 backdrop-blur-3xl rounded-3xl lg:rounded-[3rem] overflow-hidden shadow-2xl">
-                  <div className="p-5 sm:p-8">
+               <div className="border border-white/[0.04] bg-black/20 backdrop-blur-3xl rounded-2xl lg:rounded-3xl overflow-hidden shadow-2xl">
+                  <div className="p-4 sm:p-6">
                      <div className="flex items-center gap-3">
                         <div className="w-2 h-2 rounded-full bg-rose-500"></div>
                         <div className="text-sm font-black tracking-tight">방송 안내</div>
@@ -284,13 +163,13 @@ export default function LivePage() {
             </section>
 
             <aside
-               className={`lg:w-[360px] xl:w-[380px] shrink-0 flex flex-col lg:overflow-hidden order-2 ${
+               className={`lg:w-[320px] xl:w-[340px] shrink-0 flex flex-col lg:overflow-hidden lg:self-start order-2 ${
                   channelMenuOpen
-                     ? 'fixed inset-y-0 right-0 z-50 w-[86vw] max-w-[420px] translate-x-0'
-                     : 'fixed inset-y-0 right-0 z-50 w-[86vw] max-w-[420px] translate-x-full'
-                  } lg:static lg:z-auto lg:w-[360px] lg:max-w-none lg:translate-x-0 transition-transform duration-300`}
+                     ? 'fixed inset-y-0 right-0 z-50 w-[86vw] max-w-[360px] translate-x-0'
+                     : 'fixed inset-y-0 right-0 z-50 w-[86vw] max-w-[360px] translate-x-full'
+                  } lg:static lg:z-auto lg:w-[320px] lg:max-w-none lg:translate-x-0 transition-transform duration-300`}
             >
-               <div className="h-full border border-white/[0.04] bg-[#090a0f]/95 lg:bg-card-bg/[0.02] backdrop-blur-3xl rounded-none lg:rounded-[3rem] flex flex-col overflow-hidden shadow-2xl">
+               <div className="h-full border border-white/[0.04] bg-[#090a0f]/95 lg:bg-card-bg/[0.02] backdrop-blur-3xl rounded-none lg:rounded-3xl flex flex-col overflow-hidden shadow-2xl lg:h-auto lg:max-h-[72dvh]">
                   <div className="p-5 sm:p-6 border-b border-white/[0.04] flex items-center justify-between">
                      <div className="flex items-center gap-3">
                         <List size={16} className="text-rose-400" />
@@ -353,7 +232,7 @@ export default function LivePage() {
                      </div>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto custom-scrollbar p-3 sm:p-4">
+                  <div className="overflow-y-auto custom-scrollbar p-3 sm:p-4 max-h-[55dvh] sm:max-h-[60dvh] lg:max-h-[48dvh] xl:max-h-[30dvh]">
                      <div className="flex flex-col gap-2">
                         {filteredChannels.map(ch => {
                            const isActive = selectedChannel?.name === ch.name;

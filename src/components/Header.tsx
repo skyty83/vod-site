@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Search, Tv, X, Menu, Film, PlaySquare, MonitorPlay, PlayCircle, Trophy, ChevronDown } from 'lucide-react';
+import { Search, Tv, X, Menu, Film, PlaySquare, MonitorPlay, PlayCircle, Trophy } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
@@ -18,7 +18,7 @@ const MAIN_NAV = [
 ];
 
 export default function Header() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -36,18 +36,6 @@ export default function Header() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const currentLang = (() => {
-    const current = i18n.resolvedLanguage || i18n.language || 'zh';
-    if (current.startsWith('ko')) return 'ko';
-    if (current.startsWith('en')) return 'en';
-    return 'zh';
-  })();
-
-  const handleLanguageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const next = e.target.value;
-    i18n.changeLanguage(next);
-    window.localStorage.setItem('lang', next);
-  };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,7 +55,7 @@ export default function Header() {
         }`}
     >
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="h-16 sm:h-20 flex items-center justify-between gap-4 lg:gap-8">
+        <div className="h-16 sm:h-20 flex items-center justify-between gap-4 lg:gap-6 xl:gap-8">
 
           {/* Logo & Mobile Menu Toggle */}
           <div className="flex items-center gap-3 shrink-0">
@@ -105,7 +93,7 @@ export default function Header() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 flex items-center gap-2 ${isActive
+                  className={`px-3 xl:px-4 py-2 rounded-full text-xs xl:text-sm font-bold transition-all duration-300 flex items-center gap-2 ${isActive
                     ? 'bg-gradient-to-r from-blue-600/20 to-rose-600/20 text-white shadow-[inset_0_0_10px_rgba(255,255,255,0.1)] border border-white/10'
                     : 'text-slate-400 hover:bg-white/5 hover:text-white'
                     }`}
@@ -121,7 +109,7 @@ export default function Header() {
           <div className="flex items-center gap-2 shrink-0 flex-1 lg:flex-none justify-end">
             <form
               onSubmit={handleSearch}
-              className="hidden md:block w-full max-w-[280px] relative group"
+              className="hidden xl:block w-full max-w-[280px] relative group"
             >
               <div className="relative flex items-center bg-card-bg border border-transparent dark:border-white/5 rounded-full overflow-hidden transition-all duration-300 group-focus-within:border-blue-500/50 group-focus-within:bg-card-bg dark:group-focus-within:bg-slate-950 group-focus-within:shadow-[0_0_15px_rgba(59,130,246,0.15)] h-10 sm:h-11">
                 <div className="absolute left-3 w-5 h-5 flex items-center justify-center text-slate-400 group-focus-within:text-blue-500 transition-colors pointer-events-none">
@@ -143,26 +131,9 @@ export default function Header() {
               </div>
             </form>
 
-            <div className="relative">
-              <select
-                value={currentLang}
-                onChange={handleLanguageChange}
-                className="appearance-none h-10 sm:h-11 pl-4 pr-10 rounded-full bg-white/[0.02] border border-white/10 text-slate-300 text-sm font-black tracking-wide hover:bg-white/5 transition-colors focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/40"
-                aria-label={t('lang.label')}
-                title={t('lang.label')}
-              >
-                <option value="zh">{t('lang.zh')}</option>
-                <option value="ko">{t('lang.ko')}</option>
-                <option value="en">{t('lang.en')}</option>
-              </select>
-              <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500">
-                <ChevronDown size={16} />
-              </div>
-            </div>
-
             <button
               onClick={() => setSearchOpen(!searchOpen)}
-              className="md:hidden w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-slate-400 dark:text-slate-400 hover:bg-card-bg/10 transition-colors"
+              className="xl:hidden w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-slate-400 dark:text-slate-400 hover:bg-card-bg/10 transition-colors"
               aria-label={t('common.search')}
             >
               {searchOpen ? <X size={18} /> : <Search size={18} />}
@@ -171,7 +142,7 @@ export default function Header() {
         </div>
 
         {/* Mobile Search Dropdown */}
-        <div className={`md:hidden overflow-hidden transition-all duration-300 ${searchOpen ? 'max-h-24 opacity-100 pb-4' : 'max-h-0 opacity-0'}`}>
+        <div className={`xl:hidden overflow-hidden transition-all duration-300 ${searchOpen ? 'max-h-24 opacity-100 pb-4' : 'max-h-0 opacity-0'}`}>
           <form onSubmit={handleSearch} className="relative mt-1">
             <div className="relative flex items-center bg-card-bg border border-white/10/50 dark:border-white/5 rounded-full overflow-hidden focus-within:border-blue-500/50 h-11">
               <div className="absolute left-4 text-slate-400 pointer-events-none">

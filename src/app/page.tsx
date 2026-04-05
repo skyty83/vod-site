@@ -42,11 +42,34 @@ function HomeContent() {
     // Fetch the most popular 'Hot' video from each of the 5 main categories
     const fetchHeroVideos = async () => {
       try {
-        const promises = HOME_SECTION_IDS.map(id => getVideoList(1, id, true));
+        const promises = HOME_SECTION_IDS.map(async id => {
+          const res = await getVideoList(1, id, true);
+          let list = res.list as VodItem[];
+
+          // API 특성상 상위 카테고리(영화=1, 드라마=2 등)에 데이터가 직접 매핑되지 않아 
+          // 비어있는 경우, 하위 카테고리에서 데이터를 가져오도록 폴백(Fallback) 처리
+          if (!list || list.length === 0) {
+            const subIds = getSubCategoryIds(id);
+            if (subIds.length > 0) {
+              // 다양성을 위해 첫 2개의 하위 카테고리에서 데이터를 가져와 합침
+              const subFetches = subIds.slice(0, 2).map(sid => getVideoList(1, sid, true));
+              const subResults = await Promise.all(subFetches);
+              list = subResults.flatMap(r => r.list as VodItem[]);
+              
+              // 최신순 정렬
+              list.sort((a, b) => {
+                const timeA = a.vod_time ? new Date(a.vod_time).getTime() : 0;
+                const timeB = b.vod_time ? new Date(b.vod_time).getTime() : 0;
+                return timeB - timeA;
+              });
+            }
+          }
+          return list;
+        });
+
         const results = await Promise.all(promises);
         
-        const combinedHero = results.map(res => {
-          const list = res.list as VodItem[];
+        const combinedHero = results.map(list => {
           if (!list || list.length === 0) return null;
           // 분야별로 최신 데이터 중 이미지가 있는 항목을 우선 선택
           return list.find(item => item.vod_pic) || list[0];
@@ -273,7 +296,7 @@ export default function HomePage() {
         <HomeContent />
       </Suspense>
 
-      <footer className="bg-card-bg/80 dark:bg-slate-800/80 backdrop-blur-xl border-t border-card-border/80 py-8 sm:py-10 mt-10">
+      <footer className="bg-card-bg/80 dark:bg-slate-800/80 backdrop-blur-xl py-8 sm:py-10 mt-10">
         <div className="max-w-[1400px] mx-auto px-4 text-center">
           <p className="text-slate-400 text-sm font-semibold">
             © 2026 喵喵影视 · 仅供学习交流

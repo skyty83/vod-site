@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Play, Star, Info, ChevronRight, ChevronLeft } from 'lucide-react';
 import { Swiper, SwiperSlide } from 'swiper/react';
-import { Autoplay, Pagination, Navigation, EffectFade, Parallax } from 'swiper/modules';
+import { Autoplay, Pagination, Navigation, EffectFade } from 'swiper/modules';
 
 // 由于 Swiper 9+ 已将 effect 样式合并，无需单独引入 effect-fade 样式
 // 如需兼容旧版可保留，但当前版本会报模块缺失，故注释掉
@@ -20,12 +20,16 @@ export default function HeroSlider({ items }: HeroSliderProps) {
 
   if (!slides.length) return null;
 
+  const swiperKey = slides.map(s => s.vod_id).join('-');
+  const useRewind = slides.length === 5;
+
   return (
     <div className="relative w-full overflow-hidden group/slider bg-[#090a0f]">
       <Swiper
-        modules={[Autoplay, Pagination, Navigation, EffectFade, Parallax]}
+        key={swiperKey}
+        modules={[Autoplay, Pagination, Navigation, EffectFade]}
         effect="fade"
-        parallax={true}
+        fadeEffect={{ crossFade: true }}
         speed={1000}
         spaceBetween={0}
         slidesPerView={1}
@@ -39,14 +43,20 @@ export default function HeroSlider({ items }: HeroSliderProps) {
           bulletClass: 'hero-bullet',
           bulletActiveClass: 'hero-bullet-active',
         }}
-        autoplay={{ delay: 6000, disableOnInteraction: false }}
-        loop={true}
+        autoplay={{ delay: 5000, disableOnInteraction: false, waitForTransition: false }}
+        loop={slides.length > 5}
+        rewind={useRewind}
+        onSlideChange={(swiper) => {
+          if (!swiper.autoplay.running) {
+            swiper.autoplay.start();
+          }
+        }}
         className="w-full h-[600px] sm:h-[700px] lg:h-[800px] xl:h-[850px]"
       >
-        {slides.map((slide) => {
-          const score = parseFloat(slide.vod_score || '0');
+        {slides.map((slide, index) => {
+          const score = parseFloat(slide.vod_score || '0' as string);
           return (
-            <SwiperSlide key={slide.vod_id} className="relative w-full h-full overflow-hidden">
+            <SwiperSlide key={`${slide.vod_id}-${index}`} className="relative w-full h-full overflow-hidden">
               <div className="absolute inset-0 z-0">
                 {slide.vod_pic && (
                   <div className="relative w-full h-full scale-105 animate-ken-burns">
@@ -55,7 +65,7 @@ export default function HeroSlider({ items }: HeroSliderProps) {
                       alt={slide.vod_name}
                       fill
                       className="object-cover brightness-[0.6] saturate-125"
-                      priority={true}
+                      priority={index === 0}
                       unoptimized
                     />
                   </div>

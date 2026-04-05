@@ -10,6 +10,20 @@ interface PlayerProps {
   isLive?: boolean;
 }
 
+function normalizeUrl(input: string) {
+  const trimmed = (input || '').trim();
+  if (!trimmed) return '';
+  if (trimmed.startsWith('//')) return `https:${trimmed}`;
+  return trimmed;
+}
+
+function detectArtType(u: string): 'm3u8' | undefined {
+  const lower = (u || '').toLowerCase();
+  if (!lower) return undefined;
+  if (lower.includes('.m3u8') || lower.includes('m3u8')) return 'm3u8';
+  return undefined;
+}
+
 export default function Player({ url, autoplay = true, isLive = true }: PlayerProps) {
   const artRef = useRef<HTMLDivElement>(null);
 
@@ -17,10 +31,14 @@ export default function Player({ url, autoplay = true, isLive = true }: PlayerPr
     let art: Artplayer | null = null;
     let hls: Hls | null = null;
 
-    if (artRef.current && url) {
+    const normalizedUrl = normalizeUrl(url);
+    const forcedType = detectArtType(normalizedUrl);
+
+    if (artRef.current && normalizedUrl) {
       art = new Artplayer({
         container: artRef.current,
-        url: url,
+        url: normalizedUrl,
+        ...(forcedType ? { type: forcedType } : {}),
         autoplay: autoplay,
         volume: 0.5,
         isLive: isLive,
@@ -62,8 +80,15 @@ export default function Player({ url, autoplay = true, isLive = true }: PlayerPr
               });
             } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
               video.src = url;
+              video.load();
             } else {
-              art.notice.show = 'Unsupported video format';
+              video.removeAttribute('src');
+              video.load();
+              const notice = (art as unknown as { notice?: { show?: ((msg: string) => void) | string } }).notice;
+              if (notice) {
+                if (typeof notice.show === 'function') notice.show('Unsupported video format');
+                else notice.show = 'Unsupported video format';
+              }
             }
           },
         },

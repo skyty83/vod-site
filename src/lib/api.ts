@@ -170,7 +170,7 @@ export async function getCategories(): Promise<CategoryItem[]> {
         if (classes.length === 0) return STATIC_CATEGORIES;
 
         const nameById = new Map<number, string>();
-        classes.forEach((c: any) => {
+        classes.forEach((c: { type_id?: unknown; type_name?: unknown }) => {
             const id = Number(c?.type_id);
             const name = typeof c?.type_name === 'string' ? c.type_name.trim() : '';
             if (Number.isFinite(id) && name) nameById.set(id, name);
@@ -287,6 +287,10 @@ export async function getVideoList(
                 sumTotal += res.total;
             }
         });
+
+        if (typeId && fastMode && combinedList.length === 0) {
+            return await getVideoList(page, typeId, false, year);
+        }
 
         return {
             list: combinedList,

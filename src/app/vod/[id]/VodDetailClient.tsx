@@ -15,31 +15,12 @@ interface Props {
 export default function VodDetailClient({ vod }: Props) {
   const { t } = useTranslation();
   const sources = parsePlaySources(vod);
-  const score = parseFloat(vod.vod_score || '0');
-  const tags = vod.vod_tag?.split(',').filter(Boolean) || [];
 
   return (
     <main className="flex-1 pb-16 bg-background">
       {/* Cinematic Hero Section */}
-      <div className="relative h-[220px] sm:h-[260px] flex items-center justify-center overflow-hidden border-b border-white/5">
-        {/* Immersive Backdrop */}
-        <div className="absolute inset-0 z-0">
-          <div className="absolute inset-0 bg-black/55 z-10"></div>
-          <div className="absolute inset-0 bg-gradient-to-r from-background via-background/75 to-background/30 z-10" />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent z-10" />
-          {vod.vod_pic && (
-            <Image
-              src={vod.vod_pic}
-              alt=""
-              fill
-              className="object-cover opacity-45 scale-105"
-              unoptimized
-              priority
-            />
-          )}
-        </div>
-
-        <div className="max-w-[1400px] w-full mx-auto px-4 sm:px-6 lg:px-8 relative z-20 pt-16 sm:pt-20 pb-10">
+      <div className="relative h-[220px] sm:h-[260px] flex items-center justify-center overflow-">
+              <div className="max-w-[1400px] w-full mx-auto px-4 sm:px-6 lg:px-8 relative z-20 pt-16 sm:pt-20 pb-10">
           <Link
             href="/"
             className="inline-flex items-center gap-2 text-white/60 hover:text-white transition-all text-sm font-bold group bg-white/5 hover:bg-white/10 px-4 py-2 rounded-full border border-white/10 backdrop-blur-md self-start"

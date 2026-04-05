@@ -80,7 +80,7 @@ export default function VideoCard({ vod }: VideoCardProps) {
               </div>
 
               {/* Info panel sliding up from bottom */}
-              <div className="mx-4 mb-4 mt-auto bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl p-4 translate-y-4 group-hover:translate-y-0 transition-transform duration-500 space-y-3">
+              <div className="mx-4 mb-4 mt-auto bg-black/40 backdrop-blur-xl rounded-2xl p-4 translate-y-4 group-hover:translate-y-0 transition-transform duration-500 space-y-3">
                 {/* Top row: remarks + score */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
