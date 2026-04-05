@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Search, Music, Tv, X, Menu, Film, PlaySquare, MonitorPlay, PlayCircle, Trophy, ChevronDown } from 'lucide-react';
+import { Search, Tv, X, Menu, Film, PlaySquare, MonitorPlay, PlayCircle, Trophy, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
