@@ -9,7 +9,6 @@ import { CategoryItem, VodItem } from '@/types';
 import { getCategories, getVideoList, getSubCategoryIds } from '@/lib/api';
 import { TrendingUp, Clock, LayoutGrid } from 'lucide-react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useTranslation } from 'react-i18next';
 
 // 홈 화면에 표시할 주요 대분류 섹션 ID 목록
 const HOME_SECTION_IDS = [1, 2, 3, 4, 36];
@@ -17,7 +16,6 @@ const HOME_SECTION_IDS = [1, 2, 3, 4, 36];
 const YEARS = ['2026', '2025', '2024', '2023', '2022', '2021', '2020', '2019', '2018'];
 
 function HomeContent() {
-  const { t } = useTranslation();
   const router = useRouter();
   const searchParams = useSearchParams();
   const catParam = searchParams.get('cat');
@@ -158,10 +156,10 @@ function HomeContent() {
           </div>
           <div className="flex flex-col items-center gap-3">
             <h2 className="text-2xl sm:text-3xl font-black tracking-[0.3em] text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-rose-400 animate-pulse">
-              LOADING
+              加载中
             </h2>
             <p className="text-slate-500 text-xs sm:text-sm font-bold tracking-widest uppercase">
-              {t('common.loadingContent')}
+              正在加载精彩内容...
             </p>
           </div>
         </div>
@@ -209,7 +207,7 @@ function HomeContent() {
                   </div>
                 </div>
                 <p className="text-slate-400 text-sm font-bold tracking-widest uppercase animate-pulse">
-                  {t('common.loadingContent')}
+                  正在加载精彩内容...
                 </p>
               </div>
             )}
@@ -235,11 +233,11 @@ function HomeContent() {
               <div className="flex items-center gap-2 self-start sm:self-auto">
                 <div className="flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-full border shadow-sm bg-blue-500 text-white border-blue-500">
                   <Clock size={14} />
-                  <span>{t('sort.recent')}</span>
+                  <span>最新</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-full border shadow-sm bg-card-bg/60 dark:bg-slate-900/60 text-slate-400 border-card-border">
                   <TrendingUp size={14} />
-                  <span>{t('sort.hot')}</span>
+                  <span>热播</span>
                 </div>
               </div>
             </div>
@@ -254,7 +252,7 @@ function HomeContent() {
                     : 'bg-card-bg/60 dark:bg-slate-800/60 text-slate-400 hover:bg-card-bg dark:hover:bg-slate-800 border border-card-border'
                     }`}
                 >
-                  {t('filter.allYears')}
+                  全部年份
                 </button>
                 {YEARS.map(y => (
                   <button

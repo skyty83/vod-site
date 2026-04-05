@@ -4,21 +4,19 @@ import { useEffect, useState } from 'react';
 import { Search, Tv, X, Menu, Film, PlaySquare, MonitorPlay, PlayCircle, Trophy } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { useTranslation } from 'react-i18next';
 
 const MAIN_NAV = [
-  { id: 999, key: 'home', icon: <Tv size={16} />, href: '/' },
-  { id: 1, key: 'movies', icon: <Film size={16} />, href: '/?cat=1' },
-  { id: 2, key: 'series', icon: <PlaySquare size={16} />, href: '/?cat=2' },
-  { id: 3, key: 'variety', icon: <MonitorPlay size={16} />, href: '/?cat=3' },
-  { id: 4, key: 'anime', icon: <Tv size={16} />, href: '/?cat=4' },
-  { id: 36, key: 'short', icon: <Film size={16} />, href: '/?cat=36' },
-  { id: 48, key: 'sports', icon: <Trophy size={16} />, href: '/?cat=48' },
-  { id: 777, key: 'live', icon: <MonitorPlay size={16} />, href: '/live' },
+  { id: 999, label: '首页', icon: <Tv size={16} />, href: '/' },
+  { id: 1, label: '电影', icon: <Film size={16} />, href: '/?cat=1' },
+  { id: 2, label: '连续剧', icon: <PlaySquare size={16} />, href: '/?cat=2' },
+  { id: 3, label: '综艺', icon: <MonitorPlay size={16} />, href: '/?cat=3' },
+  { id: 4, label: '动漫', icon: <Tv size={16} />, href: '/?cat=4' },
+  { id: 36, label: '短剧', icon: <Film size={16} />, href: '/?cat=36' },
+  { id: 48, label: '体育', icon: <Trophy size={16} />, href: '/?cat=48' },
+  { id: 777, label: '电视直播', icon: <MonitorPlay size={16} />, href: '/live' },
 ];
 
 export default function Header() {
-  const { t } = useTranslation();
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -78,7 +76,7 @@ export default function Header() {
                 <span className="text-xl sm:text-2xl font-black tracking-[0.1em] bg-clip-text text-transparent bg-gradient-to-r from-rose-500 via-purple-500 to-blue-500 group-hover:animate-gradient-x transition-all duration-500">
                   喵喵影视
                 </span>
-                <span className="text-[9px] font-black uppercase tracking-[0.5em] text-slate-400 mt-1 pl-1 opacity-60 group-hover:text-rose-400 transition-colors duration-500">GLOBAL STREAM</span>
+                <span className="text-[9px] font-black uppercase tracking-[0.5em] text-slate-400 mt-1 pl-1 opacity-60 group-hover:text-rose-400 transition-colors duration-500">全球影视</span>
               </div>
             </Link>
           </div>
@@ -99,7 +97,7 @@ export default function Header() {
                     }`}
                 >
                   {isActive && item.icon}
-                  {t(`nav.${item.key}`)}
+                  {item.label}
                 </Link>
               );
             })}
@@ -119,14 +117,14 @@ export default function Header() {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder={t('search.placeholderVideo')}
+                  placeholder="搜索影视..."
                   className="w-full h-full bg-transparent text-foreground pl-10 pr-16 text-sm focus:outline-none placeholder:text-slate-400 dark:placeholder:text-slate-400 font-medium"
                 />
                 <button
                   type="submit"
                   className="absolute right-0 h-full px-4 text-sm font-bold text-slate-400 hover:text-blue-500 transition-colors flex items-center justify-center"
                 >
-                  {t('common.search')}
+                  搜索
                 </button>
               </div>
             </form>
@@ -134,7 +132,7 @@ export default function Header() {
             <button
               onClick={() => setSearchOpen(!searchOpen)}
               className="xl:hidden w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-slate-400 dark:text-slate-400 hover:bg-card-bg/10 transition-colors"
-              aria-label={t('common.search')}
+              aria-label="搜索"
             >
               {searchOpen ? <X size={18} /> : <Search size={18} />}
             </button>
@@ -152,11 +150,11 @@ export default function Header() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={t('search.placeholderMovie')}
+                placeholder="搜索影片..."
                 className="w-full h-full bg-transparent pl-11 pr-20 text-sm focus:outline-none text-foreground font-medium"
               />
               <button type="submit" className="absolute right-1 top-1 bottom-1 bg-blue-500 text-white px-4 text-sm font-bold rounded-full">
-                {t('common.search')}
+                搜索
               </button>
             </div>
           </form>
@@ -182,7 +180,7 @@ export default function Header() {
                       }`}
                   >
                     <span className={`${isActive ? 'text-blue-500' : 'text-slate-400'}`}>{item.icon}</span>
-                    {t(`nav.${item.key}`)}
+                    {item.label}
                   </Link>
                 );
               })}

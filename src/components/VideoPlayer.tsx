@@ -73,7 +73,7 @@ export default function VideoPlayer({ sources: allSources, vod }: VideoPlayerPro
                <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between mb-2 px-1">
                      <div className="text-xs font-bold text-slate-500 uppercase tracking-widest">
-                        총 {currentSource.episodes.length}화
+                        共 {currentSource.episodes.length} 集
                      </div>
                      <div className="text-xs font-bold text-rose-400 bg-rose-500/10 px-2 py-1 rounded-md">
                         {currentSource.name}

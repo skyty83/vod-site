@@ -6,7 +6,6 @@ import { getVideoList, getSubCategoryIds } from '@/lib/api';
 import VideoCard from './VideoCard';
 import Link from 'next/link';
 import { ChevronRight, Clock, TrendingUp } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
 
 interface CategorySectionProps {
   typeId: number;
@@ -28,7 +27,6 @@ function SkeletonCard() {
 }
 
 export default function CategorySection({ typeId, typeName }: CategorySectionProps) {
-  const { t } = useTranslation();
   const [videos, setVideos] = useState<VodItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortMode, setSortMode] = useState<SortMode>('recent');
@@ -90,8 +88,8 @@ export default function CategorySection({ typeId, typeName }: CategorySectionPro
   }, [typeId, sortMode, isVisible]);
 
   const sortButtons: { mode: SortMode; icon: React.ReactNode; label: string }[] = [
-    { mode: 'recent', icon: <Clock size={12} />, label: t('sort.recent') },
-    { mode: 'hot', icon: <TrendingUp size={12} />, label: t('sort.hot') },
+    { mode: 'recent', icon: <Clock size={12} />, label: '最新' },
+    { mode: 'hot', icon: <TrendingUp size={12} />, label: '热播' },
   ];
 
   return (
@@ -130,7 +128,7 @@ export default function CategorySection({ typeId, typeName }: CategorySectionPro
         >
           <div className="absolute inset-0 bg-[#11141d] border border-white/10 rounded-full z-0 group-hover/btn:bg-transparent transition-colors duration-300"></div>
           <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-purple-600 to-rose-600 opacity-0 group-hover/btn:opacity-100 group-hover/btn:animate-gradient-x transition-opacity duration-500 z-0"></div>
-          <span className="relative z-10 text-slate-300 group-hover/btn:text-white transition-colors duration-300">{t('common.viewAll')}</span>
+          <span className="relative z-10 text-slate-300 group-hover/btn:text-white transition-colors duration-300">查看全部</span>
         </Link>
       </div>
 

@@ -92,7 +92,7 @@ export default function LivePage() {
                <div className="absolute inset-0 border-[2px] border-blue-500/10 rounded-full animate-[ping_2s_infinite]"></div>
                <div className="absolute inset-0 border-t-2 border-blue-500 rounded-full animate-spin"></div>
             </div>
-            <p className="text-[10px] font-black tracking-[1em] text-blue-500 uppercase animate-pulse">Initializing OS</p>
+            <p className="text-[10px] font-black tracking-[1em] text-blue-500 uppercase animate-pulse">正在初始化</p>
          </div>
       </div>
    );
@@ -125,7 +125,7 @@ export default function LivePage() {
                <div className="border border-white/[0.04] bg-card-bg/[0.02] backdrop-blur-3xl rounded-2xl lg:rounded-3xl overflow-hidden shadow-2xl">
                   <div className="relative aspect-video bg-black">
                      <div className="absolute left-4 top-4 z-10 px-3 py-1.5 rounded-full bg-rose-600/20 border border-rose-500/25 text-[10px] font-black tracking-[.35em] uppercase text-rose-200">
-                        Live
+                        直播
                      </div>
                      {selectedChannel ? (
                         <Player url={selectedChannel.url} />
@@ -133,7 +133,7 @@ export default function LivePage() {
                         <div className="w-full h-full flex items-center justify-center">
                            <div className="flex flex-col items-center gap-3 text-slate-400">
                               <MonitorPlay size={52} className="opacity-25" />
-                              <div className="text-sm font-bold">채널을 선택해 주세요</div>
+                              <div className="text-sm font-bold">请选择频道</div>
                            </div>
                         </div>
                      )}
@@ -144,7 +144,7 @@ export default function LivePage() {
                         {selectedChannel?.name || '—'}
                      </div>
                      <div className="mt-2 text-sm text-slate-400">
-                        실시간 고화질 스트리밍 방송국
+                        高清直播频道
                      </div>
                   </div>
                </div>
@@ -153,10 +153,10 @@ export default function LivePage() {
                   <div className="p-4 sm:p-6">
                      <div className="flex items-center gap-3">
                         <div className="w-2 h-2 rounded-full bg-rose-500"></div>
-                        <div className="text-sm font-black tracking-tight">방송 안내</div>
+                        <div className="text-sm font-black tracking-tight">播放提示</div>
                      </div>
                      <div className="mt-4 text-sm text-slate-400 leading-relaxed">
-                        현재 선택된 채널은 실시간 방송 중입니다. 네트워크 환경에 따라 로딩 속도가 차이날 수 있습니다. 최적의 시청을 위해 안정적인 네트워크 환경에서 접속해 주세요.
+                        当前频道正在直播中。加载速度会因网络环境而异。为获得最佳观看体验，请使用稳定的网络连接。
                      </div>
                   </div>
                </div>
@@ -173,7 +173,7 @@ export default function LivePage() {
                   <div className="p-5 sm:p-6 border-b border-white/[0.04] flex items-center justify-between">
                      <div className="flex items-center gap-3">
                         <List size={16} className="text-rose-400" />
-                        <span className="text-sm font-black tracking-tight">채널 리스트</span>
+                        <span className="text-sm font-black tracking-tight">频道列表</span>
                      </div>
                      <button
                         onClick={() => setChannelMenuOpen(false)}
@@ -191,7 +191,7 @@ export default function LivePage() {
                         >
                            <div className="flex items-center gap-2">
                               <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-                              <span>{activeCategory || '카테고리 선택'}</span>
+                              <span>{activeCategory || '选择分类'}</span>
                            </div>
                            <ChevronDown size={16} className={`text-slate-500 transition-transform ${isCategoryDropdownOpen ? 'rotate-180' : ''}`} />
                         </button>
@@ -226,7 +226,7 @@ export default function LivePage() {
                         <input
                            value={searchQuery}
                            onChange={(e) => setSearchQuery(e.target.value)}
-                           placeholder="채널 검색"
+                           placeholder="搜索频道"
                            className="w-full pl-11 pr-4 py-3 rounded-2xl bg-black/30 border border-white/[0.06] text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-rose-600/40"
                         />
                      </div>
@@ -254,7 +254,7 @@ export default function LivePage() {
                                  </div>
                                  <div className="min-w-0 flex-1">
                                     <div className="text-sm font-black truncate">{ch.name}</div>
-                                    <div className="mt-1 text-[11px] text-slate-500 truncate">지금 온라인 방송 중</div>
+                                    <div className="mt-1 text-[11px] text-slate-500 truncate">正在直播</div>
                                  </div>
                                  <div className="shrink-0 text-[10px] font-black tracking-wider text-slate-500">LIVE</div>
                               </button>

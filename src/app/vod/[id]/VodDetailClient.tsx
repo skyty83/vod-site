@@ -6,14 +6,12 @@ import VideoPlayer from '@/components/VideoPlayer';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Star, Calendar, MapPin, Tag, Film, ArrowLeft } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
 
 interface Props {
   vod: VodItem;
 }
 
 export default function VodDetailClient({ vod }: Props) {
-  const { t } = useTranslation();
   const sources = parsePlaySources(vod);
 
   return (
@@ -26,7 +24,7 @@ export default function VodDetailClient({ vod }: Props) {
             className="inline-flex items-center gap-2 text-white/60 hover:text-white transition-all text-sm font-bold group bg-white/5 hover:bg-white/10 px-4 py-2 rounded-full border border-white/10 backdrop-blur-md self-start"
           >
             <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
-            {t('vod.backHome')}
+            返回首页
           </Link>
         </div>
       </div>
@@ -38,7 +36,7 @@ export default function VodDetailClient({ vod }: Props) {
             <div className="p-6 border-b border-white/5 flex items-center justify-between bg-black/20">
               <h2 className="text-xl sm:text-2xl font-black flex items-center gap-3">
                 <div className="w-1.5 h-6 bg-gradient-to-b from-blue-500 to-purple-500 rounded-full animate-pulse-glow" />
-                {t('vod.nowPlaying')}
+                正在播放
               </h2>
             </div>
             <div className="p-0 sm:p-4">
@@ -56,8 +54,8 @@ export default function VodDetailClient({ vod }: Props) {
               <Film size={28} className="text-blue-400" />
             </div>
             <div className="relative z-10 space-y-1">
-              <p className="text-white text-lg font-black tracking-widest">{t('vod.vipTitle')}</p>
-              <p className="text-blue-200/60 text-sm font-bold">{t('vod.vipDesc')}</p>
+              <p className="text-white text-lg font-black tracking-widest">喵喵影视 VIP</p>
+              <p className="text-blue-200/60 text-sm font-bold">1080P 高清无广告 · 极速线路</p>
             </div>
           </section>
         </div>

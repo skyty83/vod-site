@@ -4,7 +4,6 @@ import { CategoryItem } from '@/types';
 import { ChevronDown } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useTranslation } from 'react-i18next';
 
 interface CategoryNavProps {
   categories: CategoryItem[];
@@ -18,7 +17,6 @@ interface DropdownState {
 }
 
 export default function CategoryNav({ categories, activeId, onSelect }: CategoryNavProps) {
-  const { t } = useTranslation();
   const [openDropdown, setOpenDropdown] = useState<DropdownState | null>(null);
 
   useEffect(() => {
@@ -59,7 +57,7 @@ export default function CategoryNav({ categories, activeId, onSelect }: Category
               onClick={() => { onSelect(undefined); setOpenDropdown(null); }}
               className={`${pillClasses} ${activeId === undefined ? activeClasses : inactiveClasses}`}
             >
-              {t('common.all')}
+              全部
             </button>
 
             {topLevel.map(cat => {
@@ -126,7 +124,7 @@ export default function CategoryNav({ categories, activeId, onSelect }: Category
                       : 'text-slate-300 dark:text-slate-200 hover:bg-card-bg/10'
                       }`}
                   >
-                    {t('common.allWith', { name: cat.type_name })}
+                    全部{cat.type_name}
                   </button>
                   {children.length > 0 && (
                     <div className="h-px bg-card-bg/5 my-0.5 mx-2" />

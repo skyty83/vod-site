@@ -86,8 +86,8 @@ export default function Player({ url, autoplay = true, isLive = true }: PlayerPr
               video.load();
               const notice = (art as unknown as { notice?: { show?: ((msg: string) => void) | string } }).notice;
               if (notice) {
-                if (typeof notice.show === 'function') notice.show('Unsupported video format');
-                else notice.show = 'Unsupported video format';
+                if (typeof notice.show === 'function') notice.show('不支持的视频格式');
+                else notice.show = '不支持的视频格式';
               }
             }
           },
