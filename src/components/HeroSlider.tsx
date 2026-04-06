@@ -51,7 +51,7 @@ export default function HeroSlider({ items }: HeroSliderProps) {
             swiper.autoplay.start();
           }
         }}
-        className="w-full h-[600px] sm:h-[700px] lg:h-[800px] xl:h-[850px]"
+        className="hero-swiper w-full h-[600px] sm:h-[700px] lg:h-[800px] xl:h-[850px]"
       >
         {slides.map((slide, index) => {
           const score = parseFloat(slide.vod_score || '0' as string);
@@ -220,6 +220,14 @@ export default function HeroSlider({ items }: HeroSliderProps) {
           0% { width: 0%; }
           100% { width: 100%; }
         }
+        .hero-swiper .swiper-slide {
+          pointer-events: none;
+        }
+        .hero-swiper .swiper-slide-active,
+        .hero-swiper .swiper-slide-duplicate-active {
+          pointer-events: auto;
+        }
+
         .hero-bullet {
           width: 44px;
           height: 4px;
