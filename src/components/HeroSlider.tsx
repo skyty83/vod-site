@@ -79,7 +79,7 @@ export default function HeroSlider({ items }: HeroSliderProps) {
               </div>
 
               <div className="absolute inset-0 z-20 flex items-center">
-                <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 w-full pt-20">
+                <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 w-full">
                   <div className="grid grid-cols-1 lg:grid-cols-[1.25fr_0.75fr] gap-10 lg:gap-14 items-center">
                     <div className="max-w-3xl space-y-6 sm:space-y-8">
                       <div className="flex flex-wrap items-center gap-3 animate-fade-in-up">
