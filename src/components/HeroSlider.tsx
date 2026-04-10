@@ -3,7 +3,7 @@
 import { VodItem } from '@/types';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Play, Star, Info, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Play, Star, Info, ChevronRight, ChevronLeft, Clock } from 'lucide-react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Autoplay, Pagination, Navigation, EffectFade } from 'swiper/modules';
 
@@ -98,6 +98,12 @@ export default function HeroSlider({ items }: HeroSliderProps) {
                             <Star size={14} className="text-amber-400 fill-amber-400" />
                             <span className="text-amber-400 font-black text-sm">{score.toFixed(1)}</span>
                           </div>
+                        )}
+                        {slide.vod_time && (
+                          <span className="px-3 py-1 bg-emerald-500/20 backdrop-blur-md border border-emerald-500/30 text-emerald-400 text-[10px] font-black rounded-full uppercase tracking-widest flex items-center gap-1">
+                            <Clock size={10} />
+                            {slide.vod_time.split(' ')[0]}
+                          </span>
                         )}
                         {(slide.vod_year || slide.vod_area) && (
                           <span className="text-slate-300 text-sm font-bold hidden sm:inline">

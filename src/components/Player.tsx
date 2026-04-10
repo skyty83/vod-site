@@ -8,6 +8,7 @@ interface PlayerProps {
   url: string;
   autoplay?: boolean;
   isLive?: boolean;
+  onEnded?: () => void;
 }
 
 function normalizeUrl(input: string) {
@@ -24,7 +25,7 @@ function detectArtType(u: string): 'm3u8' | undefined {
   return undefined;
 }
 
-export default function Player({ url, autoplay = true, isLive = true }: PlayerProps) {
+export default function Player({ url, autoplay = true, isLive = true, onEnded }: PlayerProps) {
   const artRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -98,6 +99,10 @@ export default function Player({ url, autoplay = true, isLive = true }: PlayerPr
          console.warn('ArtPlayer Error:', e);
          // Try to load again or show graceful message
       });
+
+      art.on('video:ended', () => {
+        if (onEnded) onEnded();
+      });
     }
 
     return () => {
@@ -118,7 +123,7 @@ export default function Player({ url, autoplay = true, isLive = true }: PlayerPr
         art = null;
       }
     };
-  }, [url]);
+  }, [url, onEnded]);
 
   return <div ref={artRef} className="w-full h-full" />;
 }

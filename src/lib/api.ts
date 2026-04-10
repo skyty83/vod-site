@@ -61,43 +61,43 @@ function prefixVodItems(items: VodItem[], apiIndex: number): VodItem[] {
 // 순서: [API0_FFZY, API1_Guangsu, API2_Subocj, API3_Wsyzy, API4_Iqiyi, API5_Jyzy, API6_Bfzy]
 const CATEGORY_MAP: Record<number, (number | undefined)[]> = {
     // ── 영화 ──
-    1:  [1,   1,   1,   1,   7,   2,   1  ], // 电影片
-    6:  [6,   6,   6,   6,   10,  undefined,   undefined], // 动作片
-    7:  [7,   7,   12,  7,   11,  undefined,   undefined], // 喜剧片
-    8:  [8,   8,   7,   8,   12,  undefined,   undefined], // 爱情片
-    9:  [9,   9,   8,   9,   13,  undefined,   undefined], // 科幻片
-    10: [10,  11,  11,  10,  14,  undefined,   undefined], // 恐怖片
-    11: [11,  10,  10,  11,  15,  undefined,   undefined], // 剧情片
-    12: [12,  12,  9,   12,  16,  undefined,   undefined], // 战争片
-    20: [20,  24,  5,   20,  24,  undefined, undefined], // 记录片
-    34: [34,  25,  22,  55,  39,  undefined, undefined], // 伦理片
+    1: [1, 1, 1, 1, 7, 2, 1], // 电影片
+    6: [6, 6, 6, 6, 10, undefined, undefined], // 动作片
+    7: [7, 7, 12, 7, 11, undefined, undefined], // 喜剧片
+    8: [8, 8, 7, 8, 12, undefined, undefined], // 爱情片
+    9: [9, 9, 8, 9, 13, undefined, undefined], // 科幻片
+    10: [10, 11, 11, 10, 14, undefined, undefined], // 恐怖片
+    11: [11, 10, 10, 11, 15, undefined, undefined], // 剧情片
+    12: [12, 12, 9, 12, 16, undefined, undefined], // 战争片
+    20: [20, 24, 5, 20, 24, undefined, undefined], // 记录片
+    34: [34, 25, 22, 55, 39, undefined, undefined], // 伦理片
 
     // ── 드라마 ──
-    2:  [2,   2,   2,   2,   8,   1,   2  ], // 连续剧
-    13: [13,  13,  14,  13,  26,  20,  undefined], // 国产剧
-    14: [14,  15,  18,  17,  27,  4,   undefined], // 香港剧
-    15: [15,  16,  16,  15,  28,  5,   undefined], // 韩国剧
-    16: [16,  14,  17,  14,  29,  3,   undefined], // 欧美剧
-    21: [21,  22,  15,  18,  30,  undefined, undefined], // 台湾剧
-    22: [22,  21,  20,  16,  31,  6,   undefined], // 日本剧
-    23: [23,  undefined, undefined, 23, 32, undefined, undefined], // 海外剧
-    24: [24,  23,  21,  19,  33,  7,   undefined], // 泰国剧
-    36: [36,  31,  27,  54,  38,  undefined, undefined], // 短剧
+    2: [2, 2, 2, 2, 8, 1, 2], // 连续剧
+    13: [13, 13, 14, 13, 26, 20, undefined], // 国产剧
+    14: [14, 15, 18, 17, 27, 4, undefined], // 香港剧
+    15: [15, 16, 16, 15, 28, 5, undefined], // 韩国剧
+    16: [16, 14, 17, 14, 29, 3, undefined], // 欧美剧
+    21: [21, 22, 15, 18, 30, undefined, undefined], // 台湾剧
+    22: [22, 21, 20, 16, 31, 6, undefined], // 日本剧
+    23: [23, undefined, undefined, 23, 32, undefined, undefined], // 海外剧
+    24: [24, 23, 21, 19, 33, 7, undefined], // 泰国剧
+    36: [36, 31, 27, 54, 38, undefined, undefined], // 短剧
 
     // ── 예능 ──
-    3:  [3,   3,   4,   3,   9,   27,  undefined], // 综艺片
-    25: [25,  undefined,  undefined,   25,  34,  undefined,  undefined], // 大陆综艺
-    26: [26,  undefined,  undefined,   27,  35,  undefined,  undefined], // 港台综艺
-    27: [27,  undefined,  undefined,   26,  36,  undefined,  undefined], // 日韩综艺
-    28: [28,  undefined,  undefined,   28,  37,  undefined,  undefined], // 欧美综艺
+    3: [3, 3, 4, 3, 9, 27, undefined], // 综艺片
+    25: [25, undefined, undefined, 25, 34, undefined, undefined], // 大陆综艺
+    26: [26, undefined, undefined, 27, 35, undefined, undefined], // 港台综艺
+    27: [27, undefined, undefined, 26, 36, undefined, undefined], // 日韩综艺
+    28: [28, undefined, undefined, 28, 37, undefined, undefined], // 欧美综艺
 
     // ── 애니메이션 ──
-    4:  [4,   4,   3,   4,   40,  24,  undefined], // 动漫片
-    29: [29,  undefined,  24,  29,  1,   24,  undefined], // 国产动漫
-    30: [30,  undefined,  25,  30,  2,   25,  undefined], // 日韩动漫
-    31: [31,  undefined,  26,  31,  3,   undefined, undefined], // 欧美动漫
-    32: [32,  undefined,  undefined, 44, 4,   undefined, undefined], // 港台动漫
-    33: [33,  undefined,  undefined, 45, undefined, undefined, undefined], // 海外动漫
+    4: [4, 4, 3, 4, 40, 24, undefined], // 动漫片
+    29: [29, undefined, 24, 29, 1, 24, undefined], // 国产动漫
+    30: [30, undefined, 25, 30, 2, 25, undefined], // 日韩动漫
+    31: [31, undefined, 26, 31, 3, undefined, undefined], // 欧美动漫
+    32: [32, undefined, undefined, 44, 4, undefined, undefined], // 港台动漫
+    33: [33, undefined, undefined, 45, undefined, undefined, undefined], // 海外动漫
 
     // ── 스포츠 (Subocj=2, Wsyzy=3 전용) ──
     48: [undefined, undefined, 23, 48, undefined, undefined, undefined], // 体育赛事
@@ -109,47 +109,47 @@ const CATEGORY_MAP: Record<number, (number | undefined)[]> = {
 // type_pid: 0 = 최상위, 그 외 = 부모 카테고리 ID
 const STATIC_CATEGORIES: CategoryItem[] = [
     // 최상위
-    { type_id: 1,  type_pid: 0,  type_name: '电影'  },
-    { type_id: 2,  type_pid: 0,  type_name: '连续剧' },
-    { type_id: 3,  type_pid: 0,  type_name: '综艺'  },
-    { type_id: 4,  type_pid: 0,  type_name: '动漫'  },
-    { type_id: 36, type_pid: 0,  type_name: '短剧'  },
+    { type_id: 1, type_pid: 0, type_name: '电影' },
+    { type_id: 2, type_pid: 0, type_name: '连续剧' },
+    { type_id: 3, type_pid: 0, type_name: '综艺' },
+    { type_id: 4, type_pid: 0, type_name: '动漫' },
+    { type_id: 36, type_pid: 0, type_name: '短剧' },
 
     // 영화 하위
-    { type_id: 6,  type_pid: 1,  type_name: '动作片' },
-    { type_id: 7,  type_pid: 1,  type_name: '喜剧片' },
-    { type_id: 8,  type_pid: 1,  type_name: '爱情片' },
-    { type_id: 9,  type_pid: 1,  type_name: '科幻片' },
-    { type_id: 10, type_pid: 1,  type_name: '恐怖片' },
-    { type_id: 11, type_pid: 1,  type_name: '剧情片' },
-    { type_id: 12, type_pid: 1,  type_name: '战争片' },
-    { type_id: 20, type_pid: 1,  type_name: '纪录片' },
-    { type_id: 34, type_pid: 1,  type_name: '伦理片' },
+    { type_id: 6, type_pid: 1, type_name: '动作片' },
+    { type_id: 7, type_pid: 1, type_name: '喜剧片' },
+    { type_id: 8, type_pid: 1, type_name: '爱情片' },
+    { type_id: 9, type_pid: 1, type_name: '科幻片' },
+    { type_id: 10, type_pid: 1, type_name: '恐怖片' },
+    { type_id: 11, type_pid: 1, type_name: '剧情片' },
+    { type_id: 12, type_pid: 1, type_name: '战争片' },
+    { type_id: 20, type_pid: 1, type_name: '纪录片' },
+    { type_id: 34, type_pid: 1, type_name: '伦理片' },
 
     // 드라마 하위
-    { type_id: 13, type_pid: 2,  type_name: '国产剧' },
-    { type_id: 14, type_pid: 2,  type_name: '香港剧' },
-    { type_id: 15, type_pid: 2,  type_name: '韩国剧' },
-    { type_id: 16, type_pid: 2,  type_name: '欧美剧' },
-    { type_id: 21, type_pid: 2,  type_name: '台湾剧' },
-    { type_id: 22, type_pid: 2,  type_name: '日本剧' },
-    { type_id: 23, type_pid: 2,  type_name: '海外剧' },
-    { type_id: 24, type_pid: 2,  type_name: '泰国剧' },
+    { type_id: 13, type_pid: 2, type_name: '国产剧' },
+    { type_id: 14, type_pid: 2, type_name: '香港剧' },
+    { type_id: 15, type_pid: 2, type_name: '韩国剧' },
+    { type_id: 16, type_pid: 2, type_name: '欧美剧' },
+    { type_id: 21, type_pid: 2, type_name: '台湾剧' },
+    { type_id: 22, type_pid: 2, type_name: '日本剧' },
+    { type_id: 23, type_pid: 2, type_name: '海外剧' },
+    { type_id: 24, type_pid: 2, type_name: '泰国剧' },
 
     // 예능 하위
-    { type_id: 25, type_pid: 3,  type_name: '大陆综艺' },
-    { type_id: 26, type_pid: 3,  type_name: '港台综艺' },
-    { type_id: 27, type_pid: 3,  type_name: '日韩综艺' },
-    { type_id: 28, type_pid: 3,  type_name: '欧美综艺' },
+    { type_id: 25, type_pid: 3, type_name: '大陆综艺' },
+    { type_id: 26, type_pid: 3, type_name: '港台综艺' },
+    { type_id: 27, type_pid: 3, type_name: '日韩综艺' },
+    { type_id: 28, type_pid: 3, type_name: '欧美综艺' },
 
     // 애니 하위
-    { type_id: 29, type_pid: 4,  type_name: '国产动漫' },
-    { type_id: 30, type_pid: 4,  type_name: '日韩动漫' },
-    { type_id: 31, type_pid: 4,  type_name: '欧美动漫' },
-    { type_id: 32, type_pid: 4,  type_name: '港台动漫' },
+    { type_id: 29, type_pid: 4, type_name: '国产动漫' },
+    { type_id: 30, type_pid: 4, type_name: '日韩动漫' },
+    { type_id: 31, type_pid: 4, type_name: '欧美动漫' },
+    { type_id: 32, type_pid: 4, type_name: '港台动漫' },
 
     // 스포츠
-    { type_id: 48, type_pid: 0,  type_name: '体育赛事' },
+    { type_id: 48, type_pid: 0, type_name: '体育赛事' },
     { type_id: 49, type_pid: 48, type_name: '篮球' },
     { type_id: 50, type_pid: 48, type_name: '足球' },
 ];
@@ -210,7 +210,8 @@ function fetchTypeAcrossAPIs(
     page: number,
     typeId: number,
     fastMode = false,
-    year?: string
+    year?: string,
+    area?: string
 ): Promise<{ list: VodItem[]; pagecount: number; total: number } | null>[] {
     const mappedIds = CATEGORY_MAP[typeId];
     const indices = getRequestIndices(typeId, fastMode);
@@ -220,9 +221,10 @@ function fetchTypeAcrossAPIs(
         const targetTypeId = mappedIds ? mappedIds[index] : typeId;
         if (targetTypeId === undefined || !base) return Promise.resolve(null);
 
-        let url = `${base}?ac=detail&pg=${page}&t=${targetTypeId}`;
+        let url = `${base}?ac=detail&pg=${page}&t=${targetTypeId}&_ts=${Date.now()}`;
         if (year) url += `&year=${year}`;
-        
+        if (area) url += `&area=${encodeURIComponent(area)}`;
+
         return fetchWithTimeout(url)
             .then(res => res && res.ok ? res.json() : null)
             .then(data => {
@@ -244,7 +246,8 @@ export async function getVideoList(
     page: number = 1,
     typeId?: number,
     fastMode: boolean = false,
-    year?: string
+    year?: string,
+    area?: string
 ): Promise<{ list: VodItem[]; pagecount: number; total: number }> {
     try {
         let promises: Promise<{ list: VodItem[]; pagecount: number; total: number } | null>[] = [];
@@ -254,9 +257,10 @@ export async function getVideoList(
             promises = activeIndices.map((index) => {
                 const base = ENDPOINTS[index];
                 if (!base) return Promise.resolve(null);
-                let url = `${base}?ac=detail&pg=${page}`;
+                let url = `${base}?ac=detail&pg=${page}&_ts=${Date.now()}`;
                 if (year) url += `&year=${year}`;
-                
+                if (area) url += `&area=${encodeURIComponent(area)}`;
+
                 return fetchWithTimeout(url)
                     .then(res => res && res.ok ? res.json() : null)
                     .then(data => {
@@ -272,7 +276,7 @@ export async function getVideoList(
                     .catch(() => null);
             });
         } else {
-            promises.push(...fetchTypeAcrossAPIs(page, typeId, fastMode, year));
+            promises.push(...fetchTypeAcrossAPIs(page, typeId, fastMode, year, area));
         }
 
         const results = await Promise.all(promises);
@@ -289,7 +293,7 @@ export async function getVideoList(
         });
 
         if (typeId && fastMode && combinedList.length === 0) {
-            return await getVideoList(page, typeId, false, year);
+            return await getVideoList(page, typeId, false, year, area);
         }
 
         return {

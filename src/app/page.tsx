@@ -21,6 +21,7 @@ function HomeContent() {
   const catParam = searchParams.get('cat');
   const pageParam = searchParams.get('page');
   const yearParam = searchParams.get('year');
+  const areaParam = searchParams.get('area');
 
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [videos, setVideos] = useState<VodItem[]>([]);
@@ -32,54 +33,76 @@ function HomeContent() {
 
   const activeCategory = catParam ? parseInt(catParam) : undefined;
   const year = yearParam || undefined;
+  const area = areaParam || undefined;
 
   // Initial Content Sync
   useEffect(() => {
-    getCategories().then(setCategories);
-    
-    // Fetch the most popular 'Hot' video from each of the 5 main categories
-    const fetchHeroVideos = async () => {
+    const initData = async () => {
+      // 1. 카테고리 먼저 로드
+      const cats = await getCategories();
+      setCategories(cats);
+
+      // 2. 히어로 비디오 로드 (각 주요 카테고리별 최신 1개씩)
       try {
         const promises = HOME_SECTION_IDS.map(async id => {
-          const res = await getVideoList(1, id, true);
+          // 슬라이드만큼은 모든 API를 전수 조사하여 진짜 최신을 찾음 (fastMode = false)
+          const res = await getVideoList(1, id, false);
           let list = res.list as VodItem[];
 
-          // API 특성상 상위 카테고리(영화=1, 드라마=2 등)에 데이터가 직접 매핑되지 않아 
-          // 비어있는 경우, 하위 카테고리에서 데이터를 가져오도록 폴백(Fallback) 처리
-          if (!list || list.length === 0) {
-            const subIds = getSubCategoryIds(id);
-            if (subIds.length > 0) {
-              // 다양성을 위해 첫 2개의 하위 카테고리에서 데이터를 가져와 합침
-              const subFetches = subIds.slice(0, 2).map(sid => getVideoList(1, sid, true));
-              const subResults = await Promise.all(subFetches);
-              list = subResults.flatMap(r => r.list as VodItem[]);
-              
-              // 최신순 정렬
-              list.sort((a, b) => {
-                const timeA = a.vod_time ? new Date(a.vod_time).getTime() : 0;
-                const timeB = b.vod_time ? new Date(b.vod_time).getTime() : 0;
-                return timeB - timeA;
-              });
-            }
+          // 상위 카테고리에 데이터가 없는 경우를 대비해 하위 카테고리 전수 조사
+          const subIds = getSubCategoryIds(id);
+          if (subIds.length > 0) {
+            // 해당 대분류에 속한 모든 하위 카테고리(예: 드라마의 경우 모든 국가/장르)를 체크
+            const subFetches = subIds.map(sid => getVideoList(1, sid, false));
+            const subResults = await Promise.all(subFetches);
+            const subList = subResults.flatMap(r => r.list as VodItem[]);
+            list = [...list, ...subList];
           }
-          return list;
+
+          // 중복 제거 (여러 API나 하위 카테고리에서 겹치는 경우 유지)
+          const uniqueItems: Record<string, VodItem> = {};
+          list.forEach(item => {
+            const name = item.vod_name;
+            // 같은 제목이 있다면 조회수가 더 높은 것을 선택
+            if (!uniqueItems[name] || (Number(item.vod_hits || 0) > Number(uniqueItems[name].vod_hits || 0))) {
+              uniqueItems[name] = item;
+            }
+          });
+          const uniqueList = Object.values(uniqueItems);
+
+          // 각 장르 내에서 인기순(vod_hits)으로 엄격하게 정렬하여 1위 추출
+          if (uniqueList.length > 0) {
+            uniqueList.sort((a, b) => {
+              const hitsA = Number(a.vod_hits || 0);
+              const hitsB = Number(b.vod_hits || 0);
+              return hitsB - hitsA;
+            });
+          }
+
+          return uniqueList;
         });
 
         const results = await Promise.all(promises);
-        
+
+        // HOME_SECTION_IDS 순서대로 각 카테고리의 '열역(热播) 1위' 항목 추출
         const combinedHero = results.map(list => {
           if (!list || list.length === 0) return null;
-          // 분야별로 최신 데이터 중 이미지가 있는 항목을 우선 선택
-          return list.find(item => item.vod_pic) || list[0];
+          
+          // 이미지가 없는 경우를 위해 상위권 중 이미지가 있는 것을 찾되, 
+          // 1위의 위상을 고려하여 상위 2개 중 이미지가 있는 첫 번째 것을 선택 (없으면 1위 강제)
+          const topWithPic = list.slice(0, 2).find(item => item.vod_pic);
+          return topWithPic || list[0];
         }).filter((item): item is VodItem => !!item);
-        
-        setHeroVideos(combinedHero);
+
+        // 카테고리 순서(영화->드라마...)를 유지하며 슬라이드 업데이트
+        setHeroVideos([...combinedHero]);
       } catch (err) {
         console.error('Failed to fetch hero videos:', err);
       }
     };
-    fetchHeroVideos();
-  }, []);
+
+    initData();
+  }, []); // 마운트 시 최초 1회만 실행
 
   useEffect(() => {
     setPage(parseInt(pageParam || '1'));
@@ -88,7 +111,7 @@ function HomeContent() {
   const loadVideos = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await getVideoList(page, activeCategory, true, year);
+      const res = await getVideoList(page, activeCategory, true, year, area);
       setVideos(res.list as VodItem[]);
       setTotalPages(res.pagecount);
       setTotal(res.total);
@@ -98,7 +121,7 @@ function HomeContent() {
       setLoading(false);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-  }, [activeCategory, page, year]);
+  }, [activeCategory, page, year, area]);
 
   useEffect(() => {
     loadVideos();
@@ -114,6 +137,14 @@ function HomeContent() {
     const params = new URLSearchParams(searchParams.toString());
     if (y) params.set('year', y);
     else params.delete('year');
+    params.set('page', '1');
+    router.push(`/?${params.toString()}`);
+  };
+
+  const handleAreaSelect = (a: string | undefined) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (a) params.set('area', a);
+    else params.delete('area');
     params.set('page', '1');
     router.push(`/?${params.toString()}`);
   };
@@ -243,7 +274,7 @@ function HomeContent() {
             </div>
 
             {/* Year Filter */}
-            <div className="mb-8 overflow-x-auto scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
+            <div className="mb-5 overflow-x-auto scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
               <div className="flex items-center gap-2 py-2">
                 <button
                   onClick={() => handleYearSelect(undefined)}
@@ -268,6 +299,46 @@ function HomeContent() {
                 ))}
               </div>
             </div>
+
+            {/* Area Filter */}
+            {(() => {
+              const areas = Array.from(
+                new Set(
+                  videos
+                    .map(v => (typeof v.vod_area === 'string' ? v.vod_area.trim() : ''))
+                    .filter(Boolean)
+                )
+              );
+              const chips = area ? Array.from(new Set([area, ...areas])) : areas;
+              if (chips.length === 0) return null;
+              return (
+                <div className="mb-8 overflow-x-auto scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
+                  <div className="flex items-center gap-2 py-2">
+                    <button
+                      onClick={() => handleAreaSelect(undefined)}
+                      className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-bold transition-all ${area === undefined
+                        ? 'bg-slate-900 dark:bg-card-bg text-white dark:text-foreground shadow-md'
+                        : 'bg-card-bg/60 dark:bg-slate-800/60 text-slate-400 hover:bg-card-bg dark:hover:bg-slate-800 border border-card-border'
+                        }`}
+                    >
+                      全部地区
+                    </button>
+                    {chips.slice(0, 18).map(a => (
+                      <button
+                        key={a}
+                        onClick={() => handleAreaSelect(a)}
+                        className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-bold transition-all ${area === a
+                          ? 'bg-rose-500 text-white shadow-md'
+                          : 'bg-card-bg/60 dark:bg-slate-800/60 text-slate-400 hover:bg-card-bg dark:hover:bg-slate-800 border border-card-border'
+                          }`}
+                      >
+                        {a}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
 
             <VideoGrid videos={videos} loading={loading} />
 

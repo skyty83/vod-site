@@ -23,6 +23,7 @@ export interface VodItem {
   vod_isend?: number;
   vod_total?: number;
   vod_pubdate?: string;
+  vod_hits?: number;
 }
 
 export interface CategoryItem {
