@@ -24,6 +24,8 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700;900&display=swap"
           rel="stylesheet"
         />
+        <link rel="apple-touch-icon" href="/logo.png" />
+        <link rel="icon" type="image/png" sizes="192x192" href="/logo.png" />
       </head>
       <body className="min-h-screen bg-card-bg dark:bg-[#02050a] text-foreground antialiased transition-colors duration-300">
         <Providers>

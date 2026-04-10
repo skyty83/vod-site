@@ -44,17 +44,23 @@ function HomeContent() {
 
       // 2. 히어로 비디오 로드 (각 주요 카테고리별 인기 1개씩)
       try {
-        // 효율적인 조회를 위해 주요 카테고리별로 하나의 프로미스만 생성
         const promises = HOME_SECTION_IDS.map(async id => {
-          // 속도를 위해 fastMode를 다시 활성화 (상위 2개 API만 사용해도 충분히 대표작 확보 가능)
-          const res = await getVideoList(1, id, true);
-          let list = res.list as VodItem[];
+          // 속도를 위해 fastMode를 유지하되, 드라마(2)는 주요 하위 장르를 함께 조사
+          let fetchIds = [id];
+          if (id === 2) {
+            // 드라마의 경우 실질적인 데이터가 모여있는 주요 하위 장르(중드, 홍콩, 한드, 미드) 추가
+            fetchIds = [2, 13, 14, 15, 16];
+          }
 
-          // 상위 카테고리가 비어있는 특수한 경우만 최소한으로 하위 카테고리 체크
-          if (!list || list.length === 0) {
+          const fetchResults = await Promise.all(
+            fetchIds.map(fid => getVideoList(1, fid, true))
+          );
+          let list = fetchResults.flatMap(res => res.list as VodItem[]);
+
+          // 데이터가 여전히 부족할 경우 전체 하위 카테고리 중 첫 번째 체크 (보안용)
+          if (list.length === 0) {
             const subIds = getSubCategoryIds(id);
             if (subIds.length > 0) {
-              // 모든 하위 카테고리를 따로 부르지 않고 첫 번째 하위 장르 하나만 체크하여 부하 감소
               const fallbackRes = await getVideoList(1, subIds[0], true);
               list = fallbackRes.list as VodItem[];
             }
@@ -64,12 +70,13 @@ function HomeContent() {
           const uniqueItems: Record<string, VodItem> = {};
           list.forEach(item => {
             const name = item.vod_name;
-            if (!uniqueItems[name] || (Number(item.vod_hits || 0) > Number(uniqueItems[name].vod_hits || 0))) {
+            const currentHits = Number(item.vod_hits || 0);
+            if (!uniqueItems[name] || currentHits > Number(uniqueItems[name].vod_hits || 0)) {
               uniqueItems[name] = item;
             }
           });
-          
-          const sorted = Object.values(uniqueItems).sort((a, b) => 
+
+          const sorted = Object.values(uniqueItems).sort((a, b) =>
             Number(b.vod_hits || 0) - Number(a.vod_hits || 0)
           );
 
@@ -78,11 +85,11 @@ function HomeContent() {
 
         const results = await Promise.all(promises);
 
-        // 결과 병합 및 슬라이드 구성 (인기 1위 선정)
+        // 결과 병합 및 슬라이드 구성 (각 카테고리 열역 1위 선정)
         const combinedHero = results.map(list => {
           if (!list || list.length === 0) return null;
-          // 이미지가 있는 최우수작 선정
-          return list.find(item => item.vod_pic) || list[0];
+          // 이미지가 있는 최우수 인기작 선정 (상위 3개 중 추천)
+          return list.slice(0, 3).find(item => item.vod_pic) || list[0];
         }).filter((item): item is VodItem => !!item);
 
         setHeroVideos([...combinedHero]);

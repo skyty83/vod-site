@@ -65,10 +65,17 @@ export default function Header() {
             </button>
             <Link href="/" className="flex items-center gap-4 group py-2">
               <div className="relative">
-                <div className="absolute inset-0 bg-rose-500/20 blur-2xl group-hover:bg-purple-500/30 transition-colors duration-1000"></div>
-                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-[#0a0f18] border border-white/10 flex items-center justify-center relative z-10 overflow-hidden shadow-2xl group-hover:scale-105 transition-transform">
-                  <div className="absolute inset-0 bg-gradient-to-tr from-rose-500/20 via-transparent to-purple-500/20"></div>
-                  <PlayCircle size={22} className="text-rose-500 drop-shadow-[0_0_8px_rgba(244,63,94,0.6)]" />
+                {/* 로고 네온 광채 효과 */}
+                <div className="absolute -inset-1 bg-gradient-to-r from-rose-500 to-blue-500 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000"></div>
+                <div className="absolute inset-0 bg-rose-500/20 blur-2xl group-hover:bg-blue-500/30 transition-all duration-1000"></div>
+
+                <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-[#0a0f18] border border-white/10 flex items-center justify-center relative z-10 overflow-hidden shadow-2xl group-hover:scale-105 transition-transform duration-500 group-hover:border-white/20">
+                  <img
+                    src="/logo.png"
+                    alt="Logo"
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-tr from-rose-500/10 via-transparent to-blue-500/10 group-hover:opacity-50 transition-opacity"></div>
                 </div>
               </div>
 
@@ -76,7 +83,6 @@ export default function Header() {
                 <span className="text-xl sm:text-2xl font-black tracking-[0.1em] bg-clip-text text-transparent bg-gradient-to-r from-rose-500 via-purple-500 to-blue-500 group-hover:animate-gradient-x transition-all duration-500">
                   喵喵影视
                 </span>
-                <span className="text-[9px] font-black uppercase tracking-[0.5em] text-slate-400 mt-1 pl-1 opacity-60 group-hover:text-rose-400 transition-colors duration-500">全球影视</span>
               </div>
             </Link>
           </div>
