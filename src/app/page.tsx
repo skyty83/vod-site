@@ -42,59 +42,49 @@ function HomeContent() {
       const cats = await getCategories();
       setCategories(cats);
 
-      // 2. 히어로 비디오 로드 (각 주요 카테고리별 최신 1개씩)
+      // 2. 히어로 비디오 로드 (각 주요 카테고리별 인기 1개씩)
       try {
+        // 효율적인 조회를 위해 주요 카테고리별로 하나의 프로미스만 생성
         const promises = HOME_SECTION_IDS.map(async id => {
-          // 슬라이드만큼은 모든 API를 전수 조사하여 진짜 최신을 찾음 (fastMode = false)
-          const res = await getVideoList(1, id, false);
+          // 속도를 위해 fastMode를 다시 활성화 (상위 2개 API만 사용해도 충분히 대표작 확보 가능)
+          const res = await getVideoList(1, id, true);
           let list = res.list as VodItem[];
 
-          // 상위 카테고리에 데이터가 없는 경우를 대비해 하위 카테고리 전수 조사
-          const subIds = getSubCategoryIds(id);
-          if (subIds.length > 0) {
-            // 해당 대분류에 속한 모든 하위 카테고리(예: 드라마의 경우 모든 국가/장르)를 체크
-            const subFetches = subIds.map(sid => getVideoList(1, sid, false));
-            const subResults = await Promise.all(subFetches);
-            const subList = subResults.flatMap(r => r.list as VodItem[]);
-            list = [...list, ...subList];
+          // 상위 카테고리가 비어있는 특수한 경우만 최소한으로 하위 카테고리 체크
+          if (!list || list.length === 0) {
+            const subIds = getSubCategoryIds(id);
+            if (subIds.length > 0) {
+              // 모든 하위 카테고리를 따로 부르지 않고 첫 번째 하위 장르 하나만 체크하여 부하 감소
+              const fallbackRes = await getVideoList(1, subIds[0], true);
+              list = fallbackRes.list as VodItem[];
+            }
           }
 
-          // 중복 제거 (여러 API나 하위 카테고리에서 겹치는 경우 유지)
+          // 중복 및 인기순 정렬
           const uniqueItems: Record<string, VodItem> = {};
           list.forEach(item => {
             const name = item.vod_name;
-            // 같은 제목이 있다면 조회수가 더 높은 것을 선택
             if (!uniqueItems[name] || (Number(item.vod_hits || 0) > Number(uniqueItems[name].vod_hits || 0))) {
               uniqueItems[name] = item;
             }
           });
-          const uniqueList = Object.values(uniqueItems);
+          
+          const sorted = Object.values(uniqueItems).sort((a, b) => 
+            Number(b.vod_hits || 0) - Number(a.vod_hits || 0)
+          );
 
-          // 각 장르 내에서 인기순(vod_hits)으로 엄격하게 정렬하여 1위 추출
-          if (uniqueList.length > 0) {
-            uniqueList.sort((a, b) => {
-              const hitsA = Number(a.vod_hits || 0);
-              const hitsB = Number(b.vod_hits || 0);
-              return hitsB - hitsA;
-            });
-          }
-
-          return uniqueList;
+          return sorted;
         });
 
         const results = await Promise.all(promises);
 
-        // HOME_SECTION_IDS 순서대로 각 카테고리의 '열역(热播) 1위' 항목 추출
+        // 결과 병합 및 슬라이드 구성 (인기 1위 선정)
         const combinedHero = results.map(list => {
           if (!list || list.length === 0) return null;
-          
-          // 이미지가 없는 경우를 위해 상위권 중 이미지가 있는 것을 찾되, 
-          // 1위의 위상을 고려하여 상위 2개 중 이미지가 있는 첫 번째 것을 선택 (없으면 1위 강제)
-          const topWithPic = list.slice(0, 2).find(item => item.vod_pic);
-          return topWithPic || list[0];
+          // 이미지가 있는 최우수작 선정
+          return list.find(item => item.vod_pic) || list[0];
         }).filter((item): item is VodItem => !!item);
 
-        // 카테고리 순서(영화->드라마...)를 유지하며 슬라이드 업데이트
         setHeroVideos([...combinedHero]);
       } catch (err) {
         console.error('Failed to fetch hero videos:', err);

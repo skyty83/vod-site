@@ -221,7 +221,7 @@ function fetchTypeAcrossAPIs(
         const targetTypeId = mappedIds ? mappedIds[index] : typeId;
         if (targetTypeId === undefined || !base) return Promise.resolve(null);
 
-        let url = `${base}?ac=detail&pg=${page}&t=${targetTypeId}&_ts=${Date.now()}`;
+        let url = `${base}?ac=detail&pg=${page}&t=${targetTypeId}`;
         if (year) url += `&year=${year}`;
         if (area) url += `&area=${encodeURIComponent(area)}`;
 
@@ -257,7 +257,7 @@ export async function getVideoList(
             promises = activeIndices.map((index) => {
                 const base = ENDPOINTS[index];
                 if (!base) return Promise.resolve(null);
-                let url = `${base}?ac=detail&pg=${page}&_ts=${Date.now()}`;
+                let url = `${base}?ac=detail&pg=${page}`;
                 if (year) url += `&year=${year}`;
                 if (area) url += `&area=${encodeURIComponent(area)}`;
 
