@@ -58,10 +58,10 @@ export default function HeroSlider({ items }: HeroSliderProps) {
           return (
             <SwiperSlide key={`${slide.vod_id}-${index}`} className="relative w-full h-full overflow-hidden">
               <div className="absolute inset-0 z-0">
-                {slide.vod_pic && (
+                {(slide.vod_pic || slide.vod_pic_screenshot) && (
                   <div className="relative w-full h-full scale-105 animate-ken-burns">
                     <Image
-                      src={slide.vod_pic}
+                      src={slide.vod_pic || slide.vod_pic_screenshot || ''}
                       alt={slide.vod_name}
                       fill
                       className="object-cover brightness-[0.6] saturate-125"
@@ -160,9 +160,9 @@ export default function HeroSlider({ items }: HeroSliderProps) {
                       >
                         <div className="absolute -inset-3 bg-gradient-to-b from-blue-500/20 to-rose-500/20 blur-2xl opacity-60" />
                         <div className="relative aspect-[2/3] rounded-3xl overflow-hidden border border-white/10 shadow-[0_30px_70px_rgba(0,0,0,0.75)]">
-                          {slide.vod_pic && (
+                          {(slide.vod_pic || slide.vod_pic_screenshot) && (
                             <Image
-                              src={slide.vod_pic}
+                              src={slide.vod_pic || slide.vod_pic_screenshot || ''}
                               alt={slide.vod_name}
                               fill
                               className="object-cover transition-transform duration-700 ease-out hover:scale-105"
