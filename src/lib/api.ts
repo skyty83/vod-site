@@ -292,6 +292,15 @@ export async function getVideoList(
             }
         });
 
+        const uniqueMap = new Map();
+        combinedList.forEach(item => {
+            const name = (item.vod_name || '').trim();
+            if (name && !uniqueMap.has(name)) {
+                uniqueMap.set(name, item);
+            }
+        });
+        combinedList = Array.from(uniqueMap.values());
+
         if (typeId && fastMode && combinedList.length === 0) {
             return await getVideoList(page, typeId, false, year, area);
         }
@@ -335,6 +344,34 @@ export async function getVideoDetail(id: number | string): Promise<VodItem | nul
 
         const item = data.list[0];
         item.vod_id = `${apiIndex}-${item.vod_id}` as unknown as number;
+
+        const otherPromises = ENDPOINTS.map((endpointBase, idx) => {
+            if (idx === apiIndex || !endpointBase) return Promise.resolve(null);
+            return fetchWithTimeout(`${endpointBase}?ac=detail&wd=${encodeURIComponent(item.vod_name)}`, 6000)
+                .then(res => (res && res.ok ? res.json() : null))
+                .then(searchData => {
+                    if (searchData && searchData.code === 1 && searchData.list) {
+                        return searchData.list.find((v: VodItem) => (v.vod_name || '').trim() === item.vod_name.trim()) || null;
+                    }
+                    return null;
+                })
+                .catch(() => null);
+        });
+
+        const otherResults = await Promise.all(otherPromises);
+        let mergedFrom = item.vod_play_from ? item.vod_play_from.split('$$$').filter(Boolean) : [];
+        let mergedUrl = item.vod_play_url ? item.vod_play_url.split('$$$').filter(Boolean) : [];
+
+        otherResults.forEach(match => {
+            if (match && match.vod_play_from && match.vod_play_url) {
+                mergedFrom.push(...match.vod_play_from.split('$$$').filter(Boolean));
+                mergedUrl.push(...match.vod_play_url.split('$$$').filter(Boolean));
+            }
+        });
+
+        item.vod_play_from = mergedFrom.join('$$$');
+        item.vod_play_url = mergedUrl.join('$$$');
+
         return item;
     } catch {
         return null;
@@ -390,6 +427,15 @@ export async function searchVideos(
             }
         });
 
+        const uniqueMapSearch = new Map();
+        combinedList.forEach(item => {
+            const name = (item.vod_name || '').trim();
+            if (name && !uniqueMapSearch.has(name)) {
+                uniqueMapSearch.set(name, item);
+            }
+        });
+        combinedList = Array.from(uniqueMapSearch.values());
+
         combinedList.sort((a, b) => {
             const timeA = new Date(a.vod_time || 0).getTime();
             const timeB = new Date(b.vod_time || 0).getTime();
@@ -412,8 +458,17 @@ export function parsePlaySources(vod: VodItem) {
 
     const fromList = vod.vod_play_from.split('$$$');
     const urlList = vod.vod_play_url.split('$$$');
+    const countMap = new Map();
 
-    return fromList.map((name, i) => {
+    return fromList.map((nameRaw, i) => {
+        let name = nameRaw || '默认源';
+        let count = countMap.get(name) || 0;
+        count++;
+        countMap.set(name, count);
+        if (count > 1) {
+            name = `${name} ${count}`;
+        }
+
         const episodesRaw = urlList[i] || '';
         const episodes = episodesRaw.split('#').map((ep) => {
             const parts = ep.split('$');
@@ -421,7 +476,7 @@ export function parsePlaySources(vod: VodItem) {
                 name: parts[0]?.trim() || `第${i + 1}集`,
                 url: parts[1]?.trim() || '',
             };
-        }).filter((ep) => ep.url);
+        }).filter((ep) => ep.url && (ep.url.includes('.m3u8') || ep.url.includes('.mp4')));
         return { name, episodes };
-    });
+    }).filter(source => source.episodes.length > 0);
 }

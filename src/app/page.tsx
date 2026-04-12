@@ -42,57 +42,72 @@ function HomeContent() {
       const cats = await getCategories();
       setCategories(cats);
 
-      // 2. 히어로 비디오 로드 (각 주요 카테고리별 인기 1개씩)
+      // 2. 히어로 비디오 로드 (각 주요 카테고리별 최신 큐레이션)
       try {
+        const currentYear = new Date().getFullYear();
         const promises = HOME_SECTION_IDS.map(async id => {
-          // 속도를 위해 fastMode를 유지하되, 드라마(2)는 주요 하위 장르를 함께 조사
+          // 영화(1), 드라마(2) 등 주요 카테고리의 최신작 보장을 위해 데이터 소스 확장
           let fetchIds = [id];
-          if (id === 2) {
-            // 드라마의 경우 실질적인 데이터가 모여있는 주요 하위 장르(중드, 홍콩, 한드, 미드) 추가
+          if (id === 1) {
+            // 영화의 경우 주요 장르 포함 (액션, 코미디, SF 등)
+            fetchIds = [1, 6, 7, 8, 9];
+          } else if (id === 2) {
+            // 드라마의 경우 다양한 국가별 드라마 포함
             fetchIds = [2, 13, 14, 15, 16];
           }
 
           const fetchResults = await Promise.all(
-            fetchIds.map(fid => getVideoList(1, fid, true))
+            fetchIds.map(fid => getVideoList(1, fid, false))
           );
-          let list = fetchResults.flatMap(res => res.list as VodItem[]);
-
-          // 데이터가 여전히 부족할 경우 전체 하위 카테고리 중 첫 번째 체크 (보안용)
-          if (list.length === 0) {
-            const subIds = getSubCategoryIds(id);
-            if (subIds.length > 0) {
-              const fallbackRes = await getVideoList(1, subIds[0], true);
-              list = fallbackRes.list as VodItem[];
-            }
-          }
-
-          // 중복 및 인기순 정렬
-          const uniqueItems: Record<string, VodItem> = {};
-          list.forEach(item => {
-            const name = item.vod_name;
-            const currentHits = Number(item.vod_hits || 0);
-            if (!uniqueItems[name] || currentHits > Number(uniqueItems[name].vod_hits || 0)) {
-              uniqueItems[name] = item;
+          
+          let combinedList: VodItem[] = [];
+          const seenIds = new Set();
+          
+          fetchResults.forEach(res => {
+            if (res && res.list) {
+              res.list.forEach((v: VodItem) => {
+                if (!seenIds.has(v.vod_id)) {
+                  seenIds.add(v.vod_id);
+                  combinedList.push(v);
+                }
+              });
             }
           });
 
-          const sorted = Object.values(uniqueItems).sort((a, b) =>
-            Number(b.vod_hits || 0) - Number(a.vod_hits || 0)
-          );
+          const validList = combinedList.filter(v => v.vod_name && (v.vod_pic || v.vod_pic_screenshot));
 
-          return sorted;
+          if (validList.length === 0) return [];
+
+          // 정렬 로직 개선:
+          // 1. 최신 연도 우선 (현재 및 작년) + 업데이트 시간 조합
+          const sortedItems = validList.sort((a, b) => {
+            const yearA = parseInt(a.vod_year || '0');
+            const yearB = parseInt(b.vod_year || '0');
+            
+            // 최근 2년(현재년도 포함) 작품에 우선순위 부여
+            const isLatestA = yearA >= currentYear - 1;
+            const isLatestB = yearB >= currentYear - 1;
+            
+            if (isLatestA && !isLatestB) return -1;
+            if (!isLatestA && isLatestB) return 1;
+            
+            // 동일 그룹 내에서는 업데이트 시간(vod_time) 우선
+            const timeA = a.vod_time ? new Date(a.vod_time).getTime() : 0;
+            const timeB = b.vod_time ? new Date(b.vod_time).getTime() : 0;
+            if (timeB !== timeA) return timeB - timeA;
+
+            // 업데이트 시간도 같으면 조회수(hits) 우선
+            return Number(b.vod_hits || 0) - Number(a.vod_hits || 0);
+          });
+
+          // 각 카테고리별 최상위 1개만 추출
+          return sortedItems[0] || null;
         });
 
         const results = await Promise.all(promises);
-
-        // 결과 병합 및 슬라이드 구성 (각 카테고리 열역 1위 선정)
-        const combinedHero = results.map(list => {
-          if (!list || list.length === 0) return null;
-          // 이미지가 있는 최우수 인기작 선정 (상위 3개 중 추천)
-          return list.slice(0, 3).find(item => item.vod_pic) || list[0];
-        }).filter((item): item is VodItem => !!item);
-
-        setHeroVideos([...combinedHero]);
+        const uniqueItems = results.filter((item): item is VodItem => !!item);
+        
+        setHeroVideos(uniqueItems.slice(0, 10));
       } catch (err) {
         console.error('Failed to fetch hero videos:', err);
       }

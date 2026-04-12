@@ -28,6 +28,11 @@ function detectArtType(u: string): 'm3u8' | undefined {
 export default function Player({ url, autoplay = true, isLive = true, onEnded }: PlayerProps) {
   const artRef = useRef<HTMLDivElement>(null);
 
+  const onEndedRef = useRef(onEnded);
+  useEffect(() => {
+    onEndedRef.current = onEnded;
+  }, [onEnded]);
+
   useEffect(() => {
     let art: Artplayer | null = null;
     let hls: Hls | null = null;
@@ -101,7 +106,7 @@ export default function Player({ url, autoplay = true, isLive = true, onEnded }:
       });
 
       art.on('video:ended', () => {
-        if (onEnded) onEnded();
+        if (onEndedRef.current) onEndedRef.current();
       });
     }
 
@@ -123,7 +128,7 @@ export default function Player({ url, autoplay = true, isLive = true, onEnded }:
         art = null;
       }
     };
-  }, [url, onEnded]);
+  }, [url]);
 
   return <div ref={artRef} className="w-full h-full" />;
 }

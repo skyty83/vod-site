@@ -57,12 +57,6 @@ export default function Header() {
 
           {/* Logo & Mobile Menu Toggle */}
           <div className="flex items-center gap-3 shrink-0">
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 -ml-2 text-slate-300 hover:bg-card-bg/10 rounded-full transition-colors"
-            >
-              {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
-            </button>
             <Link href="/" className="flex items-center gap-4 group py-2">
               <div className="relative">
                 {/* 로고 네온 광채 효과 */}
@@ -166,33 +160,7 @@ export default function Header() {
           </form>
         </div>
 
-        {/* Mobile Nav Menu */}
-        <div className={`lg:hidden overflow-hidden transition-all duration-300 ${mobileMenuOpen ? 'max-h-[85vh] opacity-100 pb-6' : 'max-h-0 opacity-0'}`}>
-          <div className="pt-4 border-t border-slate-100 dark:border-white/5">
-            <nav className="grid grid-cols-2 gap-3">
-              {MAIN_NAV.map((item) => {
-                const isActive = (pathname === '/live' && item.href === '/live') ||
-                  (pathname === '/' && activeCat === item.id) ||
-                  (pathname === '/' && activeCat === undefined && item.href === '/');
 
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${isActive
-                      ? 'bg-blue-50 dark:bg-blue-500/15 text-blue-600 dark:text-blue-400 ring-1 ring-blue-500/30'
-                      : 'bg-background dark:bg-slate-900/50 text-slate-300'
-                      }`}
-                  >
-                    <span className={`${isActive ? 'text-blue-500' : 'text-slate-400'}`}>{item.icon}</span>
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </nav>
-          </div>
-        </div>
       </div>
     </header>
   );

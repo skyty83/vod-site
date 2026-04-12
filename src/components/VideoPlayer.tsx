@@ -12,12 +12,7 @@ interface VideoPlayerProps {
 
 export default function VideoPlayer({ sources: allSources, vod }: VideoPlayerProps) {
    // Find the first source that seems to possess m3u8 streams (since we only support HLS natively), falling back to index 0.
-   const preferredSource = allSources.find(src =>
-      src.name.toLowerCase().includes('m3u8') ||
-      src.episodes.some(ep => ep.url.includes('.m3u8'))
-   ) || allSources[0];
-
-   const sources = preferredSource ? [preferredSource] : [];
+   const sources = allSources;
 
    const [activeSource, setActiveSource] = useState(0);
    const [activeEpisode, setActiveEpisode] = useState(0);
@@ -58,14 +53,14 @@ export default function VideoPlayer({ sources: allSources, vod }: VideoPlayerPro
             <div className="flex items-center border-b border-white/5 p-2 gap-2">
                <button
                   onClick={() => setActiveTab('episodes')}
-                  className={`flex-1 py-3 text-sm font-black tracking-widest uppercase transition-all rounded-2xl flex items-center justify-center gap-2 ${activeTab === 'episodes' ? 'bg-rose-600/20 text-rose-400' : 'text-slate-400 hover:text-white hover:bg-white/5'
+                  className={`flex-1 py-3 text-sm font-black tracking-widest uppercase transition-all rounded-2xl flex cursor-pointer items-center justify-center gap-2 ${activeTab === 'episodes' ? 'bg-rose-600/20 text-rose-400' : 'text-slate-400 hover:text-white hover:bg-white/5'
                      }`}
                >
                   <List size={16} /> 选集
                </button>
                <button
                   onClick={() => setActiveTab('info')}
-                  className={`flex-1 py-3 text-sm font-black tracking-widest uppercase transition-all rounded-2xl flex items-center justify-center gap-2 ${activeTab === 'info' ? 'bg-blue-600/20 text-blue-400' : 'text-slate-400 hover:text-white hover:bg-white/5'
+                  className={`flex-1 py-3 text-sm font-black tracking-widest uppercase transition-all rounded-2xl flex cursor-pointer items-center justify-center gap-2 ${activeTab === 'info' ? 'bg-blue-600/20 text-blue-400' : 'text-slate-400 hover:text-white hover:bg-white/5'
                      }`}
                >
                   <Info size={16} /> 简介
@@ -75,13 +70,29 @@ export default function VideoPlayer({ sources: allSources, vod }: VideoPlayerPro
             <div className="flex-1 overflow-y-auto custom-scrollbar p-4 relative">
                {activeTab === 'episodes' && (
                   <div className="flex flex-col gap-2">
+                     {sources.length > 1 && (
+                        <div className="flex flex-wrap gap-2 mb-3">
+                           {sources.map((src, idx) => (
+                              <button
+                                 key={idx}
+                                 onClick={() => { setActiveSource(idx); setActiveEpisode(0); }}
+                                 className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${activeSource === idx
+                                    ? 'bg-rose-500 text-white shadow-md shadow-rose-500/20'
+                                    : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
+                                    }`}
+                              >
+                                 {src.name}
+                              </button>
+                           ))}
+                        </div>
+                     )}
                      <div className="flex items-center justify-between mb-2 px-1">
                         <div className="text-xs font-bold text-slate-500 uppercase tracking-widest">
                            共 {currentSource.episodes.length} 集
                         </div>
-                        <div className="text-xs font-bold text-rose-400 bg-rose-500/10 px-2 py-1 rounded-md">
+                        {/* <div className="text-xs font-bold text-rose-400 bg-rose-500/10 px-2 py-1 rounded-md">
                            {currentSource.name}
-                        </div>
+                        </div> */}
                      </div>
                      {currentSource.episodes.map((ep, i) => {
                         const isActive = activeEpisode === i;
@@ -89,25 +100,43 @@ export default function VideoPlayer({ sources: allSources, vod }: VideoPlayerPro
                            <button
                               key={i}
                               onClick={() => setActiveEpisode(i)}
-                              className={`w-full text-left p-3 rounded-2xl border transition-all flex items-center justify-between group ${isActive
-                                    ? 'bg-rose-600/20 border-rose-500/30 text-white shadow-md'
-                                    : 'bg-black/20 border-white/5 text-slate-300 hover:text-white hover:bg-white/10 hover:border-white/10'
+                              className={`w-full text-left p-3 rounded-2xl border relative overflow-hidden transition-all duration-300 flex items-center  cursor-pointer justify-between group ${isActive
+                                 ? 'bg-gradient-to-r from-rose-600/20 to-orange-600/10 border-rose-500/40 text-white shadow-[0_0_20px_rgba(225,29,72,0.15)] ring-1 ring-rose-500/20'
+                                 : 'bg-white/[0.02] border-white/5 text-slate-400 hover:text-white hover:bg-white/[0.08] hover:border-white/10 hover:shadow-xl'
                                  }`}
                            >
-                              <div className="min-w-0 pr-4">
-                                 <div className={`text-sm font-bold truncate ${isActive ? 'text-rose-400' : ''}`}>
+                              {isActive && (
+                                 <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-rose-500 rounded-r-md shadow-[0_0_12px_rgba(225,29,72,0.8)]" />
+                              )}
+
+                              <div className="min-w-0 pr-4 flex items-center gap-3 relative z-10">
+                                 <div className={`flex flex-col items-center justify-center w-8 h-8 rounded-full shrink-0 transition-all duration-300 ${isActive
+                                    ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/30 ring-2 ring-rose-500/50 scale-105'
+                                    : 'bg-white/5 text-slate-500 group-hover:bg-white/10 group-hover:text-white group-hover:scale-110'
+                                    }`}>
+                                    <Play size={14} className={isActive ? "fill-current ml-0.5" : "ml-0.5 transition-transform group-hover:scale-110"} />
+                                 </div>
+                                 <div className={`text-sm font-black tracking-wide truncate transition-all duration-300 ${isActive
+                                    ? 'text-rose-400'
+                                    : 'group-hover:translate-x-1'
+                                    }`}>
                                     {ep.name}
                                  </div>
                               </div>
-                              {isActive ? (
-                                 <div className="flex gap-1 shrink-0">
-                                    <span className="w-1 h-3 bg-rose-500 rounded-full animate-[bounce_1s_infinite]"></span>
-                                    <span className="w-1 h-3 bg-rose-500 rounded-full animate-[bounce_1s_infinite_0.2s]"></span>
-                                    <span className="w-1 h-3 bg-rose-500 rounded-full animate-[bounce_1s_infinite_0.4s]"></span>
-                                 </div>
-                              ) : (
-                                 <ChevronRight size={16} className="text-slate-600 group-hover:text-slate-400 shrink-0" />
-                              )}
+
+                              <div className="relative z-10 shrink-0 flex items-center mr-1">
+                                 {isActive ? (
+                                    <div className="flex gap-1 items-end h-3.5">
+                                       <span className="w-1 h-2 bg-rose-400 rounded-sm animate-[pulse_1s_ease-in-out_infinite]"></span>
+                                       <span className="w-1 h-3.5 bg-rose-500 rounded-sm animate-[pulse_1s_ease-in-out_infinite_0.15s]"></span>
+                                       <span className="w-1 h-2.5 bg-rose-400 rounded-sm animate-[pulse_1s_ease-in-out_infinite_0.3s]"></span>
+                                    </div>
+                                 ) : (
+                                    <div className="w-6 h-6 rounded-full bg-white/0 group-hover:bg-white/10 flex items-center justify-center transition-all duration-300 group-hover:translate-x-1">
+                                       <ChevronRight size={14} className="text-slate-600 group-hover:text-white transition-colors" />
+                                    </div>
+                                 )}
+                              </div>
                            </button>
                         );
                      })}

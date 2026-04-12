@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import Providers from "./providers";
 import "./globals.css";
 import Header from "@/components/Header";
+import MobileBottomNav from "@/components/MobileBottomNav";
 
 export const metadata: Metadata = {
   title: "喵喵影视 - 在线视频",
@@ -27,12 +28,15 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/logo.png" />
         <link rel="icon" type="image/png" sizes="192x192" href="/logo.png" />
       </head>
-      <body className="min-h-screen bg-card-bg dark:bg-[#02050a] text-foreground antialiased transition-colors duration-300">
+      <body className="min-h-screen bg-card-bg dark:bg-[#02050a] text-foreground antialiased transition-colors duration-300 pb-32 lg:pb-0">
         <Providers>
           <Suspense fallback={<div className="h-20" />}>
             <Header />
           </Suspense>
-          {children}
+          <main className="min-h-screen">
+            {children}
+          </main>
+          <MobileBottomNav />
         </Providers>
       </body>
     </html>
