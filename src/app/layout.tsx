@@ -36,7 +36,9 @@ export default function RootLayout({
           <main className="min-h-screen">
             {children}
           </main>
-          <MobileBottomNav />
+          <Suspense fallback={null}>
+            <MobileBottomNav />
+          </Suspense>
         </Providers>
       </body>
     </html>
