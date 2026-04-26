@@ -77,18 +77,27 @@ export default function Player({ url, autoplay = true, isLive = true, onEnded }:
   useEffect(() => {
     const player = playerRef.current;
     if (player && url) {
+      // Determine source type based on URL or isLive flag
+      let type = 'video/mp4';
+      if (url.includes('.m3u8') || url.includes('.m3u') || isLive) {
+        type = 'application/x-mpegURL';
+      }
+
       player.src({
         src: url,
-        type: url.includes('.m3u8') ? 'application/x-mpegURL' : 'video/mp4'
+        type: type
       });
+
       if (autoplay) {
         const playPromise = player.play();
         if (playPromise !== undefined) {
-          playPromise.catch((e: Error) => console.log('Autoplay prevented', e.message));
+          playPromise.catch((e: Error) => {
+            console.log('Autoplay prevented or playback failed:', e.message);
+          });
         }
       }
     }
-  }, [url, autoplay]);
+  }, [url, autoplay, isLive]);
 
   return (
     <>

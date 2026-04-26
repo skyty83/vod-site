@@ -2,9 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { Search, MonitorPlay, Wifi, List, Clock, X, ChevronDown } from 'lucide-react';
-import dynamic from 'next/dynamic';
-
-const Player = dynamic(() => import('@/components/Player'), { ssr: false });
+import Player from '@/components/Player';
 
 interface Channel {
    name: string;
@@ -23,6 +21,7 @@ export default function LivePage() {
    const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
    const [searchQuery, setSearchQuery] = useState('');
    const [loading, setLoading] = useState(true);
+   const [brokenLogos, setBrokenLogos] = useState<Set<string>>(new Set());
 
    useEffect(() => {
       const fetchData = async () => {
@@ -246,8 +245,13 @@ export default function LivePage() {
                                     }`}
                               >
                                  <div className="w-12 h-12 rounded-2xl overflow-hidden bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-                                    {ch.logo ? (
-                                       <img src={ch.logo} alt={ch.name} className="object-cover" />
+                                    {ch.logo && !brokenLogos.has(`${ch.group}-${ch.name}`) ? (
+                                       <img
+                                          src={ch.logo}
+                                          alt={ch.name}
+                                          className="object-cover"
+                                          onError={() => setBrokenLogos(prev => new Set(prev).add(`${ch.group}-${ch.name}`))}
+                                       />
                                     ) : (
                                        <MonitorPlay size={18} className="text-slate-500" />
                                     )}
