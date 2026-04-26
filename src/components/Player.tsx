@@ -50,6 +50,9 @@ export default function Player({ url, autoplay = true, isLive = true, onEnded }:
           overrideNative: true,
           enableLowInitialPlaylist: true,
           limitRenditionByPlayerDimensions: false,
+          useDevicePixelRatio: true,
+          smoothQualityChange: true,
+          fastQualityChange: true,
         },
         nativeAudioTracks: false,
         nativeVideoTracks: false
