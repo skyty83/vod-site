@@ -1,18 +1,20 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { Search, MonitorPlay, Wifi, List, Clock, X, ChevronDown } from 'lucide-react';
+import { Search, MonitorPlay, Wifi, List, Clock, X, ChevronDown, Heart } from 'lucide-react';
 import Player from '@/components/Player';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
 
 interface Channel {
-   name: string;
-   url: string;
+   name?: string;
+   url?: string;
    group: string;
    logo?: string;
 }
 
 
 export default function LivePage() {
+   const { toggleFavoriteChannel, isFavoriteChannel } = useLocalStorage();
    const [channels, setChannels] = useState<Channel[]>([]);
    const [categories, setCategories] = useState<string[]>([]);
    const [activeCategory, setActiveCategory] = useState<string>('');
@@ -22,6 +24,7 @@ export default function LivePage() {
    const [searchQuery, setSearchQuery] = useState('');
    const [loading, setLoading] = useState(true);
    const [brokenLogos, setBrokenLogos] = useState<Set<string>>(new Set());
+   const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
 
    useEffect(() => {
       const fetchData = async () => {
@@ -79,12 +82,19 @@ export default function LivePage() {
    const filteredChannels = useMemo(() => {
       const uniqueMap = new Map<string, Channel>();
       channels
-         .filter(ch => ch.group === activeCategory && ch.name.toLowerCase().includes(searchQuery.toLowerCase()))
+         .filter(ch => {
+            const chName = ch.name || '';
+            const matchesSearch = chName.toLowerCase().includes(searchQuery.toLowerCase());
+            const matchesCategory = showOnlyFavorites ? true : ch.group === activeCategory;
+            const matchesFavorite = showOnlyFavorites ? isFavoriteChannel(ch) : true;
+            return matchesSearch && matchesCategory && matchesFavorite;
+         })
          .forEach(ch => {
-            if (!uniqueMap.has(ch.name)) uniqueMap.set(ch.name, ch);
+            const chName = ch.name || '未知频道';
+            if (!uniqueMap.has(chName)) uniqueMap.set(chName, ch);
          });
       return Array.from(uniqueMap.values());
-   }, [channels, activeCategory, searchQuery]);
+   }, [channels, activeCategory, searchQuery, showOnlyFavorites, isFavoriteChannel]);
 
    if (loading) return (
       <div className="h-screen bg-[#05070a] flex items-center justify-center">
@@ -129,7 +139,7 @@ export default function LivePage() {
                         直播
                      </div>
                      {selectedChannel ? (
-                        <Player url={selectedChannel.url} />
+                        <Player url={selectedChannel.url || ''} />
                      ) : (
                         <div className="w-full h-full flex items-center justify-center">
                            <div className="flex flex-col items-center gap-3 text-slate-400">
@@ -174,6 +184,13 @@ export default function LivePage() {
                      <div className="flex items-center gap-3">
                         <List size={16} className="text-rose-400" />
                         <span className="text-sm font-black tracking-tight">频道列表</span>
+                        <button
+                           onClick={() => setShowOnlyFavorites(!showOnlyFavorites)}
+                           className={`ml-2 p-1.5 rounded-lg transition-all ${showOnlyFavorites ? 'text-rose-500 bg-rose-500/10' : 'text-slate-500 hover:text-white hover:bg-white/5'}`}
+                           title="仅显示收藏"
+                        >
+                           <Heart size={16} fill={showOnlyFavorites ? 'currentColor' : 'none'} />
+                        </button>
                      </div>
                      <button
                         onClick={() => setChannelMenuOpen(false)}
@@ -236,10 +253,10 @@ export default function LivePage() {
                         {filteredChannels.map(ch => {
                            const isActive = selectedChannel?.name === ch.name;
                            return (
-                              <button
+                              <div
                                  key={`${ch.group}-${ch.name}`}
                                  onClick={() => handleChannelSelect(ch)}
-                                 className={`w-full text-left p-3 rounded-2xl border transition-all flex items-center gap-3 ${isActive
+                                 className={`w-full text-left p-3 rounded-2xl border transition-all flex items-center gap-3 cursor-pointer ${isActive
                                     ? 'bg-rose-600/20 border-rose-500/30 text-white'
                                     : 'bg-black/20 border-white/[0.06] text-slate-300 hover:text-white hover:bg-black/30'
                                     }`}
@@ -260,8 +277,17 @@ export default function LivePage() {
                                     <div className="text-sm font-black truncate">{ch.name}</div>
                                     <div className="mt-1 text-[11px] text-slate-500 truncate">正在直播</div>
                                  </div>
+                                 <button
+                                    onClick={(e) => {
+                                       e.stopPropagation();
+                                       toggleFavoriteChannel(ch);
+                                    }}
+                                    className={`p-2 rounded-xl transition-all ${isFavoriteChannel(ch) ? 'text-rose-500' : 'text-slate-600 hover:text-white'}`}
+                                 >
+                                    <Heart size={16} fill={isFavoriteChannel(ch) ? 'currentColor' : 'none'} />
+                                 </button>
                                  <div className="shrink-0 text-[10px] font-black tracking-wider text-slate-500">LIVE</div>
-                              </button>
+                              </div>
                            );
                         })}
                      </div>

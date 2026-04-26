@@ -1,7 +1,8 @@
 import { VodItem } from '@/types';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Play, Star, Flame, Calendar } from 'lucide-react';
+import { Play, Star, Flame, Calendar, Heart } from 'lucide-react';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
 
 interface VideoCardProps {
   vod: VodItem;
@@ -12,6 +13,9 @@ function stripHtml(html: string) {
 }
 
 export default function VideoCard({ vod }: VideoCardProps) {
+  const { toggleFavoriteVOD, isFavoriteVOD } = useLocalStorage();
+  const isFav = isFavoriteVOD(vod.vod_id);
+
   const score = parseFloat(vod.vod_score || '0');
   const hasScore = score > 0;
   const blurb = vod.vod_blurb ? stripHtml(vod.vod_blurb) : '';
@@ -22,6 +26,12 @@ export default function VideoCard({ vod }: VideoCardProps) {
   if (vod.type_name) tags.push(vod.type_name);
   if (vod.vod_area) tags.push(vod.vod_area);
   if (vod.vod_year) tags.push(vod.vod_year);
+
+  const handleFavoriteClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleFavoriteVOD(vod);
+  };
 
   return (
     <Link href={`/vod/${vod.vod_id}`} className="block group">
@@ -47,6 +57,17 @@ export default function VideoCard({ vod }: VideoCardProps) {
               </div>
             )}
 
+            {/* Favorite Button (Visible on both states but highlighted on hover) */}
+            <button
+              onClick={handleFavoriteClick}
+              className={`absolute top-3 left-3 z-30 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 border backdrop-blur-md ${isFav
+                ? 'bg-rose-500 border-rose-500 text-white shadow-lg shadow-rose-500/30'
+                : 'bg-black/40 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
+                }`}
+            >
+              <Heart size={14} fill={isFav ? 'currentColor' : 'none'} />
+            </button>
+
             {/* ===== DEFAULT badges (visible when NOT hovered) ===== */}
             {/* Score badge top-right */}
             {hasScore && (
@@ -56,14 +77,14 @@ export default function VideoCard({ vod }: VideoCardProps) {
               </div>
             )}
 
-            {/* Remarks badge top-left */}
+            {/* Remarks badge bottom-left */}
             {vod.vod_remarks && (
-              <div className="absolute top-3 left-3 bg-white/10 backdrop-blur-md border border-white/10 rounded-full px-3 h-7 flex items-center shadow-lg shadow-black/20 transition-opacity duration-300 group-hover:opacity-0">
+              <div className="absolute bottom-3 left-3 bg-white/10 backdrop-blur-md border border-white/10 rounded-full px-3 h-7 flex items-center shadow-lg shadow-black/20 transition-opacity duration-300 group-hover:opacity-0">
                 <span className="text-xs font-bold text-white tracking-widest">{vod.vod_remarks}</span>
               </div>
             )}
 
-            {/* Year badge bottom-left */}
+            {/* Year badge bottom-right */}
             {vod.vod_year && (
               <div className="absolute bottom-3 right-3 bg-black/55 backdrop-blur-md rounded-full px-3 h-8 flex items-center border border-white/10 transition-opacity duration-300 group-hover:opacity-0">
                 <span className="text-xs text-white/90 font-medium">{vod.vod_year}</span>
