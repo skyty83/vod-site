@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import Artplayer from 'artplayer';
-import Hls from 'hls.js';
+import videojs from 'video.js';
+import PlayerType from 'video.js/dist/types/player';
+import 'video.js/dist/video-js.css';
 
 interface PlayerProps {
   url: string;
@@ -11,124 +12,134 @@ interface PlayerProps {
   onEnded?: () => void;
 }
 
-function normalizeUrl(input: string) {
-  const trimmed = (input || '').trim();
-  if (!trimmed) return '';
-  if (trimmed.startsWith('//')) return `https:${trimmed}`;
-  return trimmed;
-}
-
-function detectArtType(u: string): 'm3u8' | undefined {
-  const lower = (u || '').toLowerCase();
-  if (!lower) return undefined;
-  if (lower.includes('.m3u8') || lower.includes('m3u8')) return 'm3u8';
-  return undefined;
-}
-
 export default function Player({ url, autoplay = true, isLive = true, onEnded }: PlayerProps) {
-  const artRef = useRef<HTMLDivElement>(null);
-
+  const containerRef = useRef<HTMLDivElement>(null);
+  const playerRef = useRef<PlayerType | null>(null);
   const onEndedRef = useRef(onEnded);
+
   useEffect(() => {
     onEndedRef.current = onEnded;
   }, [onEnded]);
 
   useEffect(() => {
-    let art: Artplayer | null = null;
-    let hls: Hls | null = null;
+    if (!containerRef.current) return;
 
-    const normalizedUrl = normalizeUrl(url);
-    const forcedType = detectArtType(normalizedUrl);
+    const videoElement = document.createElement("video-js");
+    videoElement.classList.add('vjs-big-play-centered');
+    videoElement.setAttribute('playsinline', 'true');
+    videoElement.setAttribute('crossorigin', 'anonymous');
+    containerRef.current.appendChild(videoElement);
 
-    if (artRef.current && normalizedUrl) {
-      art = new Artplayer({
-        container: artRef.current,
-        url: normalizedUrl,
-        ...(forcedType ? { type: forcedType } : {}),
-        autoplay: autoplay,
-        volume: 0.5,
-        isLive: isLive,
-        muted: false,
-        theme: '#e11d48',
-        fullscreen: true,
-        fullscreenWeb: true,
-        pip: true,
-        setting: true,
-        playbackRate: true,
-        aspectRatio: true,
-        hotkey: true,
-        playsInline: true,
-        autoSize: false,
-        autoMini: true,
-        miniProgressBar: true,
-        customType: {
-          m3u8: function (video: HTMLMediaElement, url: string, art: Artplayer) {
-            if (Hls.isSupported()) {
-              if (hls) hls.destroy();
-              hls = new Hls();
-              hls.loadSource(url);
-              hls.attachMedia(video);
-              
-              hls.on(Hls.Events.ERROR, (event, data) => {
-                 if (data.fatal) {
-                    switch (data.type) {
-                       case Hls.ErrorTypes.NETWORK_ERROR:
-                          hls?.startLoad();
-                          break;
-                       case Hls.ErrorTypes.MEDIA_ERROR:
-                          hls?.recoverMediaError();
-                          break;
-                       default:
-                          hls?.destroy();
-                          break;
-                    }
-                 }
-              });
-            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-              video.src = url;
-              video.load();
-            } else {
-              video.removeAttribute('src');
-              video.load();
-              const notice = (art as unknown as { notice?: { show?: ((msg: string) => void) | string } }).notice;
-              if (notice) {
-                if (typeof notice.show === 'function') notice.show('不支持的视频格式');
-                else notice.show = '不支持的视频格式';
-              }
-            }
-          },
+    // Register custom Korean language for video.js
+    videojs.addLanguage('ko', {
+      "The media could not be loaded, either because the server or network failed or because the format is not supported.": "원본 방송 서버 응답이 없거나, 브라우저 보안(CORS)으로 인해 차단된 채널입니다.",
+      "A network error caused the media download to fail part-way.": "네트워크 오류로 영상 다운로드가 중단되었습니다.",
+      "The media playback was aborted due to a corruption problem or because the media used features your browser did not support.": "미디어 파일이 손상되었거나 브라우저에서 지원하지 않는 형식입니다.",
+      "No compatible source was found for this media.": "호환되는 소스를 찾을 수 없습니다."
+    });
+
+    const player = videojs(videoElement, {
+      autoplay: autoplay,
+      controls: true,
+      responsive: true,
+      fluid: true,
+      liveui: isLive,
+      language: 'ko', // Set language to our custom Korean
+      html5: {
+        vhs: {
+          overrideNative: true,
+          enableLowInitialPlaylist: true,
+          limitRenditionByPlayerDimensions: false,
         },
-      });
-      
-      art.on('error', (e) => {
-         console.warn('ArtPlayer Error:', e);
-         // Try to load again or show graceful message
-      });
+        nativeAudioTracks: false,
+        nativeVideoTracks: false
+      }
+    });
 
-      art.on('video:ended', () => {
-        if (onEndedRef.current) onEndedRef.current();
-      });
-    }
+    playerRef.current = player;
+
+    player.on('ended', () => {
+      if (onEndedRef.current) onEndedRef.current();
+    });
+
+    player.on('error', () => {
+      console.warn('Video.js error:', player.error());
+    });
 
     return () => {
-      if (hls) {
-        hls.stopLoad();
-        hls.detachMedia();
-        hls.destroy();
-        hls = null;
-      }
-      if (art) {
-        if (art.video) {
-          art.video.muted = true;
-          art.video.pause();
-          art.video.removeAttribute('src');
-          art.video.load();
-        }
-        art.destroy(true);
-        art = null;
+      if (playerRef.current && !playerRef.current.isDisposed()) {
+        playerRef.current.dispose();
+        playerRef.current = null;
       }
     };
-  }, [url]);
+  }, []);
 
-  return <div ref={artRef} className="w-full h-full" />;
+  useEffect(() => {
+    const player = playerRef.current;
+    if (player && url) {
+      player.src({
+        src: url,
+        type: url.includes('.m3u8') ? 'application/x-mpegURL' : 'video/mp4'
+      });
+      if (autoplay) {
+        const playPromise = player.play();
+        if (playPromise !== undefined) {
+          playPromise.catch((e: Error) => console.log('Autoplay prevented', e.message));
+        }
+      }
+    }
+  }, [url, autoplay]);
+
+  return (
+    <>
+      <div className="w-full h-full relative" data-vjs-player>
+        <div ref={containerRef} className="w-full h-full" />
+      </div>
+      <style jsx global>{`
+        .video-js {
+          width: 100% !important;
+          height: 100% !important;
+          background-color: #000;
+        }
+        .vjs-fluid {
+           padding-top: 0 !important;
+        }
+        .video-js .vjs-tech {
+           object-fit: contain;
+        }
+        .video-js .vjs-error-display .vjs-modal-dialog-content {
+          font-size: 1.1rem;
+          color: #f43f5e;
+          font-weight: bold;
+          padding: 2rem;
+        }
+        .video-js .vjs-big-play-button {
+          background-color: rgba(225, 29, 72, 0.8) !important;
+          border-color: transparent !important;
+          border-radius: 50% !important;
+          width: 2.5em !important;
+          height: 2.5em !important;
+          line-height: 2.3em !important;
+          margin-top: -1.25em !important;
+          margin-left: -1.25em !important;
+        }
+        .video-js:hover .vjs-big-play-button {
+           background-color: rgba(225, 29, 72, 1) !important;
+        }
+        .video-js .vjs-control-bar {
+          background-color: rgba(0, 0, 0, 0.6) !important;
+          backdrop-filter: blur(10px);
+        }
+        .video-js .vjs-play-progress, .video-js .vjs-volume-level {
+          background-color: #e11d48 !important;
+        }
+        .video-js .vjs-load-progress div {
+          background-color: rgba(255, 255, 255, 0.2) !important;
+        }
+        .video-js .vjs-slider {
+          background-color: rgba(255, 255, 255, 0.1) !important;
+        }
+      `}</style>
+    </>
+  );
 }

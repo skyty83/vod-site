@@ -2,7 +2,9 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { Search, MonitorPlay, Wifi, List, Clock, X, ChevronDown } from 'lucide-react';
-import Player from '@/components/Player';
+import dynamic from 'next/dynamic';
+
+const Player = dynamic(() => import('@/components/Player'), { ssr: false });
 
 interface Channel {
    name: string;
@@ -120,7 +122,7 @@ export default function LivePage() {
                   onClick={() => setChannelMenuOpen(false)}
                />
             )}
-            
+
             <section className="flex-1 min-h-0 flex flex-col gap-4 sm:gap-6 order-1">
                <div className="border border-white/[0.04] bg-card-bg/[0.02] backdrop-blur-3xl rounded-2xl lg:rounded-3xl overflow-hidden shadow-2xl">
                   <div className="relative aspect-video bg-black">
@@ -163,10 +165,9 @@ export default function LivePage() {
             </section>
 
             <aside
-               className={`lg:w-[320px] xl:w-[340px] shrink-0 flex flex-col lg:overflow-hidden lg:self-start order-2 ${
-                  channelMenuOpen
-                     ? 'fixed inset-y-0 right-0 z-50 w-[86vw] max-w-[360px] translate-x-0'
-                     : 'fixed inset-y-0 right-0 z-50 w-[86vw] max-w-[360px] translate-x-full'
+               className={`lg:w-[320px] xl:w-[340px] shrink-0 flex flex-col lg:overflow-hidden lg:self-start order-2 ${channelMenuOpen
+                  ? 'fixed inset-y-0 right-0 z-50 w-[86vw] max-w-[360px] translate-x-0'
+                  : 'fixed inset-y-0 right-0 z-50 w-[86vw] max-w-[360px] translate-x-full'
                   } lg:static lg:z-auto lg:w-[320px] lg:max-w-none lg:translate-x-0 transition-transform duration-300`}
             >
                <div className="h-full border border-white/[0.04] bg-[#090a0f]/95 lg:bg-card-bg/[0.02] backdrop-blur-3xl rounded-none lg:rounded-3xl flex flex-col overflow-hidden shadow-2xl lg:h-auto lg:max-h-[72dvh]">
@@ -207,11 +208,10 @@ export default function LivePage() {
                                           setActiveCategory(cat);
                                           setIsCategoryDropdownOpen(false);
                                        }}
-                                       className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                                          activeCategory === cat
-                                             ? 'bg-rose-600/20 text-rose-400'
-                                             : 'text-slate-300 hover:bg-white/5 hover:text-white'
-                                       }`}
+                                       className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${activeCategory === cat
+                                          ? 'bg-rose-600/20 text-rose-400'
+                                          : 'text-slate-300 hover:bg-white/5 hover:text-white'
+                                          }`}
                                     >
                                        {cat}
                                     </button>
@@ -247,7 +247,7 @@ export default function LivePage() {
                               >
                                  <div className="w-12 h-12 rounded-2xl overflow-hidden bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
                                     {ch.logo ? (
-                                       <img src={ch.logo} alt={ch.name} className="w-full h-full object-cover" />
+                                       <img src={ch.logo} alt={ch.name} className="object-cover" />
                                     ) : (
                                        <MonitorPlay size={18} className="text-slate-500" />
                                     )}
