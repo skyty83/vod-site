@@ -1,8 +1,7 @@
 import { VodItem } from '@/types';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Play, Star, Flame, Calendar, Heart } from 'lucide-react';
-import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { Play, Star, Clock, Flame, Calendar } from 'lucide-react';
 
 interface VideoCardProps {
   vod: VodItem;
@@ -12,14 +11,31 @@ function stripHtml(html: string) {
   return html.replace(/<[^>]*>/g, '').trim();
 }
 
-export default function VideoCard({ vod }: VideoCardProps) {
-  const { toggleFavoriteVOD, isFavoriteVOD } = useLocalStorage();
-  const isFav = isFavoriteVOD(vod.vod_id);
+import { memo } from 'react';
 
+export default memo(function VideoCard({ vod }: VideoCardProps) {
   const score = parseFloat(vod.vod_score || '0');
   const hasScore = score > 0;
   const blurb = vod.vod_blurb ? stripHtml(vod.vod_blurb) : '';
   const dateStr = vod.vod_time ? vod.vod_time.split(' ')[0] : '';
+
+  // Format duration: expects "HH:MM:SS" or "MM:SS" or raw seconds number
+  const formatDuration = (raw?: string): string | null => {
+    if (!raw) return null;
+    // If it's a number (seconds)
+    const asNum = Number(raw);
+    if (!isNaN(asNum) && asNum > 0) {
+      const h = Math.floor(asNum / 3600);
+      const m = Math.floor((asNum % 3600) / 60);
+      const s = Math.floor(asNum % 60);
+      if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+      return `${m}:${String(s).padStart(2, '0')}`;
+    }
+    // Already formatted string — return as-is if it looks like time
+    if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(raw.trim())) return raw.trim();
+    return null;
+  };
+  const duration = formatDuration(vod.vod_duration);
 
   // Collect tag items
   const tags: string[] = [];
@@ -27,21 +43,39 @@ export default function VideoCard({ vod }: VideoCardProps) {
   if (vod.vod_area) tags.push(vod.vod_area);
   if (vod.vod_year) tags.push(vod.vod_year);
 
-  const handleFavoriteClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    toggleFavoriteVOD(vod);
-  };
+
 
   return (
     <Link href={`/vod/${vod.vod_id}`} className="block group">
-      <article className="relative bg-card-bg rounded-2xl overflow-hidden transition-all duration-500 hover:-translate-y-3 hover:border-transparent z-10 before:absolute before:inset-0 before:-z-10 before:bg-gradient-to-r before:from-blue-600 before:via-purple-600 before:to-rose-600 before:opacity-0 group-hover:before:opacity-100 before:transition-opacity before:duration-500 before:blur-xl group-hover:shadow-[0_20px_50px_rgba(236,72,153,0.3)]">
-        {/* Animated gradient border overlay */}
-        <div className="absolute bg-card-bg rounded-2xl z-0 transition-colors duration-500 group-hover:bg-[#151822]"></div>
+      {/* Outer wrapper — animated gradient border via padding trick */}
+      <article
+        className="relative rounded-2xl p-[1px] overflow-hidden transition-all duration-500 hover:-translate-y-2"
+        style={{
+          background: 'linear-gradient(135deg, rgba(59,130,246,0.15), rgba(139,92,246,0.10), rgba(244,63,94,0.08))',
+        }}
+      >
+        {/* Animated gradient border — visible on hover */}
+        <div
+          className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 rounded-2xl"
+          style={{
+            background: 'linear-gradient(135deg, #3b82f6, #8b5cf6, #f43f5e, #3b82f6)',
+            backgroundSize: '300% 300%',
+            animation: 'gradient-x 4s ease infinite',
+          }}
+        />
 
-        <div className="relative z-10 h-full flex flex-col">
+        {/* Glow effect behind card on hover */}
+        <div className="absolute -inset-2 opacity-0 group-hover:opacity-100 transition-opacity duration-700 blur-2xl pointer-events-none"
+          style={{
+            background: 'radial-gradient(ellipse at 50% 80%, rgba(59,130,246,0.25), rgba(139,92,246,0.15), transparent 70%)',
+          }}
+        />
+
+        {/* Inner card surface */}
+        <div className="relative rounded-[15px] overflow-hidden bg-[#0d1017] group-hover:bg-[#111520] transition-colors duration-500 flex flex-col z-10">
+
           {/* Thumbnail */}
-          <div className="relative aspect-[2/3] overflow-hidden bg-black/10 rounded-t-2xl">
+          <div className="relative aspect-[2/3] overflow-hidden">
             {vod.vod_pic ? (
               <Image
                 src={vod.vod_pic}
@@ -52,76 +86,94 @@ export default function VideoCard({ vod }: VideoCardProps) {
                 unoptimized
               />
             ) : (
-              <div className="w-full h-full bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
-                <Play size={40} className="text-slate-400" />
+              <div className="w-full h-full bg-gradient-to-br from-[#11141d] to-[#090a0f] flex items-center justify-center">
+                <Play size={40} className="text-blue-500/40" />
               </div>
             )}
 
-            {/* Favorite Button (Visible on both states but highlighted on hover) */}
-            <button
-              onClick={handleFavoriteClick}
-              className={`absolute top-3 left-3 z-30 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 border backdrop-blur-md ${isFav
-                ? 'bg-rose-500 border-rose-500 text-white shadow-lg shadow-rose-500/30'
-                : 'bg-black/40 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
-                }`}
-            >
-              <Heart size={14} fill={isFav ? 'currentColor' : 'none'} />
-            </button>
+            {/* Shimmer overlay on hover */}
+            <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out bg-gradient-to-r from-transparent via-white/[0.06] to-transparent pointer-events-none" />
+
+            {/* Top gradient for badges */}
+            <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/60 to-transparent pointer-events-none" />
+
 
             {/* ===== DEFAULT badges (visible when NOT hovered) ===== */}
             {/* Score badge top-right */}
             {hasScore && (
-              <div className="absolute top-3 right-3 bg-black/55 backdrop-blur-md rounded-full px-3 py-1.5 flex items-center gap-1.5 border border-white/10 shadow-lg shadow-black/30 transition-opacity duration-300 group-hover:opacity-0">
-                <Star size={14} className="text-amber-400" fill="currentColor" />
-                <span className="text-sm font-bold text-amber-400 drop-shadow-md">{score.toFixed(1)}</span>
+              <div className="absolute top-3 right-3 bg-blue-600/80 backdrop-blur-md rounded-lg px-2.5 py-1 flex items-center gap-1 shadow-lg shadow-blue-600/20 transition-all duration-300 group-hover:opacity-0 group-hover:translate-y-1">
+                <Star size={12} className="text-amber-300" fill="currentColor" />
+                <span className="text-xs font-black text-white tracking-wide">{score.toFixed(1)}</span>
               </div>
             )}
 
             {/* Remarks badge bottom-left */}
             {vod.vod_remarks && (
-              <div className="absolute bottom-3 left-3 bg-white/10 backdrop-blur-md border border-white/10 rounded-full px-3 h-7 flex items-center shadow-lg shadow-black/20 transition-opacity duration-300 group-hover:opacity-0">
-                <span className="text-xs font-bold text-white tracking-widest">{vod.vod_remarks}</span>
+              <div className="absolute bottom-3 left-3 bg-gradient-to-r from-blue-600/90 to-purple-600/90 backdrop-blur-md rounded-lg px-2.5 h-6 flex items-center shadow-lg shadow-blue-600/20 transition-all duration-300 group-hover:opacity-0 group-hover:-translate-y-1">
+                <span className="text-[10px] font-black text-white tracking-wider uppercase">{vod.vod_remarks}</span>
               </div>
             )}
 
-            {/* Year badge bottom-right */}
-            {vod.vod_year && (
-              <div className="absolute bottom-3 right-3 bg-black/55 backdrop-blur-md rounded-full px-3 h-8 flex items-center border border-white/10 transition-opacity duration-300 group-hover:opacity-0">
-                <span className="text-xs text-white/90 font-medium">{vod.vod_year}</span>
+            {/* Duration badge bottom-right (shown when no hover) */}
+            {duration && (
+              <div className="absolute bottom-3 right-3 flex items-center gap-1 bg-black/65 backdrop-blur-md rounded-lg px-2 h-6 border border-white/10 transition-all duration-300 group-hover:opacity-0 group-hover:-translate-y-1 shadow-md">
+                <Clock size={9} className="text-blue-400/80" />
+                <span className="text-[10px] text-white/90 font-bold tabular-nums tracking-wide">{duration}</span>
               </div>
             )}
 
-            {/* ===== HOVER OVERLAY with full metadata ===== */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex flex-col">
+            {/* Year badge — only show if no duration */}
+            {!duration && vod.vod_year && (
+              <div className="absolute bottom-3 right-3 bg-white/[0.08] backdrop-blur-md rounded-lg px-2.5 h-6 flex items-center border border-white/[0.08] transition-all duration-300 group-hover:opacity-0 group-hover:-translate-y-1">
+                <span className="text-[10px] text-white/80 font-bold tracking-wider">{vod.vod_year}</span>
+              </div>
+            )}
+
+            {/* ===== HOVER OVERLAY ===== */}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#090a0f] via-[#090a0f]/60 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col">
               {/* Play button center */}
               <div className="flex-1 flex items-center justify-center">
-                <div className="w-16 h-16 bg-white/10 backdrop-blur-xl rounded-full flex items-center justify-center border border-white/20 shadow-[0_0_40px_rgba(255,255,255,0.4)] scale-90 group-hover:scale-100 transition-all duration-500 group-hover:animate-pulse-glow">
-                  <Play size={28} className="text-white ml-1" fill="currentColor" />
+                <div
+                  className="w-16 h-16 rounded-full flex items-center justify-center border border-blue-400/30 scale-75 group-hover:scale-100 transition-all duration-500 shadow-[0_0_30px_rgba(59,130,246,0.35)]"
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(59,130,246,0.25), rgba(139,92,246,0.20))',
+                    backdropFilter: 'blur(16px)',
+                  }}
+                >
+                  <Play size={26} className="text-white ml-0.5 drop-shadow-lg" fill="currentColor" />
                 </div>
               </div>
 
               {/* Info panel sliding up from bottom */}
-              <div className="mx-4 mb-4 mt-auto bg-black/40 backdrop-blur-xl rounded-2xl p-4 translate-y-4 group-hover:translate-y-0 transition-transform duration-500 space-y-3">
+              <div className="mx-3 mb-3 mt-auto rounded-xl p-3 translate-y-3 group-hover:translate-y-0 transition-transform duration-500 space-y-2 border border-white/[0.06]"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(17,20,29,0.85), rgba(13,16,23,0.90))',
+                  backdropFilter: 'blur(20px)',
+                }}
+              >
                 {/* Top row: remarks + score */}
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     {vod.vod_remarks && (
-                      <span className="inline-flex items-center gap-1 bg-green-500/90 text-white text-[11px] font-bold px-2.5 py-1 rounded">
-                        <Flame size={12} />
+                      <span className="inline-flex items-center gap-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-[10px] font-black px-2 py-0.5 rounded-md shadow-md shadow-blue-500/20">
+                        <Flame size={10} />
                         {vod.vod_remarks}
                       </span>
                     )}
                   </div>
                   {hasScore && (
-                    <span className="text-amber-400 text-base font-black">{score.toFixed(1)}</span>
+                    <div className="flex items-center gap-1">
+                      <Star size={12} className="text-amber-400" fill="currentColor" />
+                      <span className="text-amber-400 text-sm font-black">{score.toFixed(1)}</span>
+                    </div>
                   )}
                 </div>
 
                 {/* Tags row */}
                 {tags.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     {tags.map((tag, i) => (
-                      <span key={i} className="bg-card-bg/15 text-white/90 text-[11px] font-bold px-2.5 py-1 rounded">
+                      <span key={i} className="bg-white/[0.06] text-blue-200/80 text-[10px] font-bold px-2 py-0.5 rounded-md border border-white/[0.04]">
                         {tag}
                       </span>
                     ))}
@@ -130,23 +182,23 @@ export default function VideoCard({ vod }: VideoCardProps) {
 
                 {/* Date */}
                 {dateStr && (
-                  <p className="text-[11px] text-white/60 font-medium flex items-center gap-1.5">
-                    <Calendar size={12} />
+                  <p className="text-[10px] text-slate-400 font-medium flex items-center gap-1">
+                    <Calendar size={10} className="text-blue-400/60" />
                     添加：{dateStr}
                   </p>
                 )}
 
                 {/* Actor */}
                 {vod.vod_actor && vod.vod_actor !== '' && (
-                  <p className="text-[11px] text-white/70 truncate">
-                    <span className="text-white/50">主演：</span>{vod.vod_actor}
+                  <p className="text-[10px] text-slate-300/70 truncate">
+                    <span className="text-blue-400/50">主演：</span>{vod.vod_actor}
                   </p>
                 )}
 
                 {/* Blurb */}
                 {blurb && (
-                  <p className="text-[11px] text-white/60 line-clamp-2 leading-relaxed">
-                    <span className="text-white/50">简介：</span>{blurb}
+                  <p className="text-[10px] text-slate-400/80 line-clamp-2 leading-relaxed">
+                    <span className="text-blue-400/50">简介：</span>{blurb}
                   </p>
                 )}
               </div>
@@ -154,17 +206,27 @@ export default function VideoCard({ vod }: VideoCardProps) {
           </div>
 
           {/* Info below thumbnail */}
-          <div className="p-4 bg-transparent z-20">
-            <h3 className="text-base font-black text-white leading-snug truncate mb-1.5 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-blue-400 group-hover:to-rose-400 group-hover:animate-gradient-x transition-all duration-500">
+          <div className="p-3.5 pb-4">
+            <h3 className="text-sm font-black text-slate-100 leading-snug truncate mb-1 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-blue-400 group-hover:via-purple-400 group-hover:to-rose-400 transition-all duration-500"
+              style={{ backgroundSize: '200% auto' }}
+            >
               {vod.vod_name}
             </h3>
-            <p className="text-xs sm:text-sm text-slate-400 truncate font-bold">
-              {vod.type_name}
-              {vod.vod_area ? ` · ${vod.vod_area}` : ''}
-            </p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[11px] text-slate-500 truncate font-semibold">
+                {vod.type_name}
+                {vod.vod_area ? ` · ${vod.vod_area}` : ''}
+              </p>
+              {hasScore && (
+                <div className="flex items-center gap-0.5 shrink-0">
+                  <Star size={10} className="text-blue-400/60" fill="currentColor" />
+                  <span className="text-[10px] font-bold text-blue-400/70">{score.toFixed(1)}</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </article>
     </Link>
   );
-}
+});

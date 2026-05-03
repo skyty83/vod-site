@@ -4,7 +4,6 @@ import Providers from "./providers";
 import "./globals.css";
 import Header from "@/components/Header";
 import MobileBottomNav from "@/components/MobileBottomNav";
-import WatchHistoryFloat from "@/components/WatchHistoryFloat";
 
 export const metadata: Metadata = {
   title: "喵喵影视 - 在线视频",
@@ -40,7 +39,6 @@ export default function RootLayout({
           <Suspense fallback={null}>
             <MobileBottomNav />
           </Suspense>
-          <WatchHistoryFloat />
         </Providers>
       </body>
     </html>

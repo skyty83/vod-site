@@ -1,153 +1,261 @@
 'use client';
 
 import { CategoryItem } from '@/types';
-import { ChevronDown } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 
 interface CategoryNavProps {
   categories: CategoryItem[];
   activeId?: number;
   onSelect: (id?: number) => void;
+  onFilterChange?: (filters: FilterState) => void;
 }
 
-interface DropdownState {
-  catId: number;
-  rect: DOMRect;
+export interface FilterState {
+  area?: string;
+  year?: string;
+  sort?: 'time' | 'hits' | 'score';
 }
 
-export default function CategoryNav({ categories, activeId, onSelect }: CategoryNavProps) {
-  const [openDropdown, setOpenDropdown] = useState<DropdownState | null>(null);
+// ── 정적 필터 데이터 ─────────────────────────────────────────────────────────
 
-  useEffect(() => {
+const AREAS = ['全部', '大陆', '香港', '台湾', '美国', '韩国', '日本', '英国', '法国', '德国', '泰国', '印度', '其他'];
 
-    const close = () => setOpenDropdown(null);
-    window.addEventListener('scroll', close, { passive: true, capture: true });
-    window.addEventListener('resize', close);
-    return () => {
-      window.removeEventListener('scroll', close, { capture: true });
-      window.removeEventListener('resize', close);
-    };
-  }, []);
+const CURRENT_YEAR = new Date().getFullYear();
+const YEARS: string[] = ['全部', ...Array.from({ length: CURRENT_YEAR - 1969 }, (_, i) => String(CURRENT_YEAR - i))];
 
-  const topLevel = categories.filter(c => !c.type_pid);
-  const getChildren = (pid: number) => categories.filter(c => c.type_pid === pid && c.type_pid !== undefined);
+const SORT_OPTIONS = [
+  { label: '人气排序', value: 'hits' as const },
+  { label: '评分排序', value: 'score' as const },
+  { label: '时间排序', value: 'time' as const },
+];
 
-  const activeClasses = 'bg-gradient-to-r from-blue-600 via-purple-600 to-rose-600 text-white shadow-[0_0_20px_rgba(236,72,153,0.4)] border-transparent animate-gradient-x';
-  const inactiveClasses = 'bg-[#11141d]/80 text-slate-400 border-white/5 hover:bg-white/5 hover:text-white hover:border-white/20 border shadow-inner shadow-black/50';
-  const pillClasses = 'px-5 py-2 sm:px-6 sm:py-2.5 rounded-full text-sm sm:text-base font-black whitespace-nowrap transition-all duration-300 flex items-center gap-2 cursor-pointer';
+import { memo } from 'react';
 
-  const handleDropdownToggle = (catId: number, e: React.MouseEvent<HTMLButtonElement>) => {
-    if (openDropdown?.catId === catId) {
-      setOpenDropdown(null);
-    } else {
-      const rect = e.currentTarget.getBoundingClientRect();
-      setOpenDropdown({ catId, rect });
-    }
+// ── Tag chip ─────────────────────────────────────────────────────────────────
+
+const Tag = memo(function Tag({
+  label,
+  value,
+  active,
+  onSelect,
+}: {
+  label: string;
+  value: string | number | undefined;
+  active: boolean;
+  onSelect: (value: any) => void;
+}) {
+  const handleClick = useCallback(() => {
+    onSelect(value);
+  }, [value, onSelect]);
+
+  return (
+    <button
+      onClick={handleClick}
+      className={`
+        shrink-0 px-3.5 py-1.5 rounded-full text-[13px] font-medium whitespace-nowrap
+        transition-all duration-300 cursor-pointer select-none
+        ${active
+          ? 'bg-rose-500/15 text-rose-300 shadow-sm'
+          : 'text-slate-400 hover:text-white hover:bg-white/5'
+        }
+      `}
+    >
+      {label}
+    </button>
+  );
+});
+
+// ── Row ──────────────────────────────────────────────────────────────────────
+
+function FilterRow({
+  label,
+  children,
+}: {
+  label: string;
+  labelColor?: 'blue' | 'rose' | 'purple' | 'amber';
+  children: React.ReactNode;
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!scrollRef.current) return;
+    setIsDragging(true);
+    setStartX(e.pageX - scrollRef.current.offsetLeft);
+    setScrollLeft(scrollRef.current.scrollLeft);
+  };
+
+  const handleMouseLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !scrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollRef.current.offsetLeft;
+    const walk = (x - startX) * 1.5;
+    scrollRef.current.scrollLeft = scrollLeft - walk;
   };
 
   return (
-    <>
-      <nav className="bg-[#090a0f]/80 backdrop-blur-3xl border-b border-white/5 sticky top-16 sm:top-20 z-40 transition-colors duration-300 shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-rose-500/5 z-0 pointer-events-none"></div>
-          <div className="flex items-center gap-3 overflow-x-auto py-4 sm:py-5 scrollbar-hide relative z-10">
-            {/* All button */}
-            <button
-              onClick={() => { onSelect(undefined); setOpenDropdown(null); }}
-              className={`${pillClasses} ${activeId === undefined ? activeClasses : inactiveClasses}`}
-            >
-              全部
-            </button>
+    <div className="flex items-center gap-2 py-2 min-h-[44px]">
+      {/* Row label */}
+      <div className="shrink-0 w-16 flex items-center justify-between px-1 text-[14px] font-bold text-slate-300">
+        <span>{label}</span>
+        <span className="text-[10px] text-slate-500 opacity-70">▶</span>
+      </div>
 
-            {topLevel.map(cat => {
-              const children = getChildren(cat.type_id);
-              const isActive = activeId === cat.type_id || children.some(c => c.type_id === activeId);
-
-              if (children.length === 0) {
-                return (
-                  <button
-                    key={cat.type_id}
-                    onClick={() => { onSelect(cat.type_id); setOpenDropdown(null); }}
-                    className={`${pillClasses} ${isActive ? activeClasses : inactiveClasses}`}
-                  >
-                    {cat.type_name}
-                  </button>
-                );
-              }
-
-              return (
-                <div key={cat.type_id} className="relative shrink-0">
-                  <button
-                    onClick={(e) => handleDropdownToggle(cat.type_id, e)}
-                    className={`${pillClasses} cursor-pointer pr-4 sm:pr-5 ${isActive ? activeClasses : inactiveClasses}`}
-                  >
-                    {cat.type_name}
-                    <ChevronDown
-                      size={16}
-                      className={`transition-transform duration-200 shrink-0 opacity-70 ${openDropdown?.catId === cat.type_id ? 'rotate-180' : ''}`}
-                    />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </nav>
-
-      {/* Portal dropdown — renders outside nav so it never gets clipped */}
-      { openDropdown && createPortal(
-        <>
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 z-[9998]"
-            onClick={() => setOpenDropdown(null)}
-          />
-          {/* Dropdown panel — positioned via JS rect */}
-          <div
-            className="fixed z-[9999] min-w-[180px] p-2 bg-card-bg/98 backdrop-blur-2xl border border-card-border rounded-2xl shadow-2xl shadow-slate-300/50 dark:shadow-black/70 flex flex-col gap-1"
-            style={{
-              top: openDropdown.rect.bottom + 10,
-              left: openDropdown.rect.left,
-            }}
-          >
-            {(() => {
-              const cat = topLevel.find(c => c.type_id === openDropdown.catId);
-              if (!cat) return null;
-              const children = getChildren(cat.type_id);
-              return (
-                <>
-                  <button
-                    onClick={() => { onSelect(cat.type_id); setOpenDropdown(null); }}
-                    className={`text-left w-full px-4 py-2.5 rounded-xl text-sm font-bold transition-colors ${activeId === cat.type_id
-                      ? 'bg-blue-50 dark:bg-blue-500/15 text-blue-600 dark:text-blue-400'
-                      : 'text-slate-300 dark:text-slate-200 hover:bg-card-bg/10'
-                      }`}
-                  >
-                    全部{cat.type_name}
-                  </button>
-                  {children.length > 0 && (
-                    <div className="h-px bg-card-bg/5 my-0.5 mx-2" />
-                  )}
-                  {children.map(child => (
-                    <button
-                      key={child.type_id}
-                      onClick={() => { onSelect(child.type_id); setOpenDropdown(null); }}
-                      className={`text-left w-full px-4 py-2.5 rounded-xl text-sm font-bold transition-colors ${activeId === child.type_id
-                        ? 'bg-blue-50 dark:bg-blue-500/15 text-blue-600 dark:text-blue-400'
-                        : 'text-slate-300 dark:text-slate-200 hover:bg-card-bg/10'
-                        }`}
-                    >
-                      {child.type_name}
-                    </button>
-                  ))}
-                </>
-              );
-            })()}
-          </div>
-        </>,
-        document.body
-      )}
-    </>
+      {/* Scrollable tag list */}
+      <div
+        ref={scrollRef}
+        className={`flex items-center gap-1 overflow-x-auto scrollbar-hide flex-1 pl-2 ${
+          isDragging ? 'cursor-grabbing select-none *:pointer-events-none' : 'cursor-grab'
+        }`}
+        onMouseDown={handleMouseDown}
+        onMouseLeave={handleMouseLeave}
+        onMouseUp={handleMouseUp}
+        onMouseMove={handleMouseMove}
+      >
+        {children}
+      </div>
+    </div>
   );
 }
+
+// ── Main component ────────────────────────────────────────────────────────────
+
+export default memo(function CategoryNav({ categories, activeId, onSelect, onFilterChange }: CategoryNavProps) {
+  const [area, setArea] = useState<string>('全部');
+  const [year, setYear] = useState<string>('全部');
+  const [sort, setSort] = useState<'time' | 'hits' | 'score'>('hits');
+
+  const topLevel = useMemo(() => categories.filter(c => !c.type_pid || c.type_pid === 0), [categories]);
+
+  const activeTopId = useMemo(() => {
+    if (activeId === undefined) return undefined;
+    const direct = topLevel.find(c => c.type_id === activeId);
+    if (direct) return direct.type_id;
+    const parent = categories.find(c => c.type_id === activeId);
+    return parent?.type_pid;
+  }, [activeId, topLevel, categories]);
+
+  const subCategories = useMemo(() => {
+    if (activeTopId === undefined) return [];
+    return categories.filter(c => c.type_pid === activeTopId);
+  }, [activeTopId, categories]);
+
+  const onFilterChangeRef = useRef(onFilterChange);
+  useEffect(() => { onFilterChangeRef.current = onFilterChange; });
+
+  useEffect(() => {
+    onFilterChangeRef.current?.({
+      area: area === '全部' ? undefined : area,
+      year: year === '全部' ? undefined : year,
+      sort,
+    });
+  }, [area, year, sort]);
+
+  const handleTopSelect = useCallback((id?: number | string) => {
+    setArea('全部');
+    setYear('全部');
+    onSelect(id as number | undefined);
+  }, [onSelect]);
+
+  const handleSubSelect = useCallback((id: number | string) => {
+    onSelect(id as number);
+  }, [onSelect]);
+
+  const isSubSelected = activeId !== undefined && activeId !== activeTopId;
+
+  return (
+    <nav
+      className="sticky top-16 sm:top-20 z-40 border-b border-white/[0.05]"
+      style={{
+        background: 'linear-gradient(180deg, rgba(9,10,15,0.97) 0%, rgba(13,16,23,0.95) 100%)',
+        backdropFilter: 'blur(24px)',
+        boxShadow: '0 8px 40px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04)',
+      }}
+    >
+      {/* 상단 미세 그라디언트 라인 */}
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-500/30 to-transparent pointer-events-none" />
+
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="divide-y divide-white/[0.05]">
+
+          {/* ── 类型 row ── */}
+          <FilterRow label="类型">
+            <Tag
+              label="全部"
+              value={undefined}
+              active={activeId === undefined}
+              onSelect={handleTopSelect}
+            />
+            {topLevel.map(cat => (
+              <Tag
+                key={cat.type_id}
+                label={cat.type_name}
+                value={cat.type_id}
+                active={activeId === cat.type_id || activeTopId === cat.type_id}
+                onSelect={handleTopSelect}
+              />
+            ))}
+          </FilterRow>
+
+          {/* ── 剧情 row ── 1뎁스 선택 후 서브 카테고리가 있을 때 */}
+          {subCategories.length > 0 && (
+            <FilterRow label="剧情">
+              <Tag
+                label="全部"
+                value={activeTopId!}
+                active={activeTopId === activeId}
+                onSelect={handleSubSelect}
+              />
+              {subCategories.map(sub => (
+                <Tag
+                  key={sub.type_id}
+                  label={sub.type_name}
+                  value={sub.type_id}
+                  active={activeId === sub.type_id}
+                  onSelect={handleSubSelect}
+                />
+              ))}
+            </FilterRow>
+          )}
+
+          {/* ── 地区 / 年份 / 排序 — 2뎁스 선택 시에만 ── */}
+          {isSubSelected && (
+            <>
+              <FilterRow label="地区">
+                {AREAS.map(a => (
+                  <Tag key={a} label={a} value={a} active={area === a} onSelect={setArea} />
+                ))}
+              </FilterRow>
+
+              <FilterRow label="年份">
+                {YEARS.map(y => (
+                  <Tag key={y} label={y} value={y} active={year === y} onSelect={setYear} />
+                ))}
+              </FilterRow>
+
+              <FilterRow label="排序">
+                {SORT_OPTIONS.map(opt => (
+                  <Tag key={opt.value} label={opt.label} value={opt.value} active={sort === opt.value} onSelect={setSort as any} />
+                ))}
+              </FilterRow>
+            </>
+          )}
+
+        </div>
+      </div>
+
+      {/* 하단 미세 그라디언트 라인 */}
+      <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent pointer-events-none" />
+    </nav>
+  );
+});

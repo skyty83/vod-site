@@ -1,11 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PlaySource, VodItem } from '@/types';
 import { Play, List, Info, ChevronRight, Calendar, MapPin, Tag, Film } from 'lucide-react';
 import Player from '@/components/Player';
-import { useLocalStorage } from '@/hooks/useLocalStorage';
-import { useEffect } from 'react';
 
 interface VideoPlayerProps {
    sources: PlaySource[];
@@ -13,10 +11,8 @@ interface VideoPlayerProps {
 }
 
 export default function VideoPlayer({ sources: allSources, vod }: VideoPlayerProps) {
-   const { addToHistory } = useLocalStorage();
    // Find the first source that seems to possess m3u8 streams (since we only support HLS natively), falling back to index 0.
    const sources = allSources;
-
    const [activeSource, setActiveSource] = useState(0);
    const [activeEpisode, setActiveEpisode] = useState(0);
    const [activeTab, setActiveTab] = useState<'episodes' | 'info'>('episodes');
@@ -24,12 +20,6 @@ export default function VideoPlayer({ sources: allSources, vod }: VideoPlayerPro
    const currentSource = sources[activeSource];
    const currentEpisode = currentSource?.episodes[activeEpisode];
    const currentUrl = currentEpisode?.url || '';
-
-   useEffect(() => {
-      if (currentUrl && vod) {
-         addToHistory(vod);
-      }
-   }, [currentUrl, vod, addToHistory]);
 
    if (!sources.length || !currentSource?.episodes.length) {
       return (
