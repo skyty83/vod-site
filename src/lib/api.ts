@@ -211,7 +211,8 @@ function fetchTypeAcrossAPIs(
     typeId: number,
     fastMode = false,
     year?: string,
-    area?: string
+    area?: string,
+    sort?: string
 ): Promise<{ list: VodItem[]; pagecount: number; total: number } | null>[] {
     const mappedIds = CATEGORY_MAP[typeId];
     const indices = getRequestIndices(typeId, fastMode);
@@ -247,7 +248,8 @@ export async function getVideoList(
     typeId?: number,
     fastMode: boolean = false,
     year?: string,
-    area?: string
+    area?: string,
+    sort?: string
 ): Promise<{ list: VodItem[]; pagecount: number; total: number }> {
     try {
         let promises: Promise<{ list: VodItem[]; pagecount: number; total: number } | null>[] = [];
@@ -276,7 +278,7 @@ export async function getVideoList(
                     .catch(() => null);
             });
         } else {
-            promises.push(...fetchTypeAcrossAPIs(page, typeId, fastMode, year, area));
+            promises.push(...fetchTypeAcrossAPIs(page, typeId, fastMode, year, area, sort));
         }
 
         const results = await Promise.all(promises);
@@ -301,8 +303,21 @@ export async function getVideoList(
         });
         combinedList = Array.from(uniqueMap.values());
 
+        // 클라이언트 사이드 정렬 적용
+        if (sort === 'hits') {
+            combinedList.sort((a, b) => Number(b.vod_hits || 0) - Number(a.vod_hits || 0));
+        } else if (sort === 'score') {
+            combinedList.sort((a, b) => Number(b.vod_score || 0) - Number(a.vod_score || 0));
+        } else if (sort === 'time') {
+            combinedList.sort((a, b) => {
+                const dateA = new Date(a.vod_time || 0).getTime();
+                const dateB = new Date(b.vod_time || 0).getTime();
+                return dateB - dateA;
+            });
+        }
+
         if (typeId && fastMode && combinedList.length === 0) {
-            return await getVideoList(page, typeId, false, year, area);
+            return await getVideoList(page, typeId, false, year, area, sort);
         }
 
         return {

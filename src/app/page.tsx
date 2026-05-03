@@ -31,11 +31,11 @@ function HomeContent() {
   const [page, setPage] = useState(parseInt(pageParam || '1'));
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
-  const [filterState, setFilterState] = useState<FilterState>({});
+  const [filterState, setFilterState] = useState<FilterState>({ area: '全部', year: '全部', sort: 'hits' });
 
   const activeCategory = catParam ? parseInt(catParam) : undefined;
-  const year = yearParam || filterState.year || undefined;
-  const area = areaParam || filterState.area || undefined;
+  const year = (yearParam && yearParam !== '全部') ? yearParam : (filterState.year !== '全部' ? filterState.year : undefined);
+  const area = (areaParam && areaParam !== '全部') ? areaParam : (filterState.area !== '全部' ? filterState.area : undefined);
 
   // Initial Content Sync
   useEffect(() => {
@@ -125,7 +125,7 @@ function HomeContent() {
   const loadVideos = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await getVideoList(page, activeCategory, true, year, area);
+      const res = await getVideoList(page, activeCategory, true, year, area, filterState.sort);
       setVideos(res.list as VodItem[]);
       setTotalPages(res.pagecount);
       setTotal(res.total);
@@ -135,7 +135,7 @@ function HomeContent() {
       setLoading(false);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-  }, [activeCategory, page, year, area]);
+  }, [activeCategory, page, year, area, filterState.sort]);
 
   useEffect(() => {
     loadVideos();
@@ -151,7 +151,7 @@ function HomeContent() {
     const params = new URLSearchParams();
     if (id !== undefined) params.set('cat', String(id));
     params.set('page', '1');
-    setFilterState({});
+    setFilterState({ area: '全部', year: '全部', sort: 'hits' });
     router.push(`/?${params.toString()}`);
   }, [router]);
 
@@ -167,7 +167,9 @@ function HomeContent() {
 
   const isHome = activeCategory === undefined;
 
-  const isSectionalPage = isHome || (activeCategory !== undefined && getSubCategoryIds(activeCategory).length > 0);
+  // 필터(연도, 지역)가 선택된 경우 섹션뷰가 아닌 통합 리스트뷰를 보여줌
+  const hasFilter = (year !== undefined && year !== '全部') || (area !== undefined && area !== '全部');
+  const isSectionalPage = (isHome || (activeCategory !== undefined && getSubCategoryIds(activeCategory).length > 0)) && !hasFilter;
 
   const getHeaderGradient = (catId?: number) => {
     if (catId === 1) return 'from-rose-500 to-orange-500'; // 电影
@@ -215,6 +217,17 @@ function HomeContent() {
         <div className="mb-10 sm:mb-14">
           <HeroSlider items={heroVideos} />
         </div>
+      )}
+
+      {/* =============== CATEGORY NAVIGATION =============== */}
+      {!isHome && activeCategory !== undefined && (
+        <CategoryNav
+          categories={categories}
+          activeId={activeCategory}
+          onSelect={handleCategorySelect}
+          onFilterChange={handleFilterChange}
+          filters={filterState}
+        />
       )}
 
       {/* =============== MAIN CONTENT (CENTERED) =============== */}

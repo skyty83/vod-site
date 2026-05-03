@@ -51,11 +51,10 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
             <button
               key={page}
               onClick={() => onPageChange(page as number)}
-              className={`w-10 h-10 rounded-xl text-sm font-bold transition-all shadow-sm ${
-                currentPage === page
+              className={`w-10 h-10 rounded-xl text-sm font-bold transition-all shadow-sm cursor-pointer ${currentPage === page
                   ? 'bg-gradient-to-br from-blue-500 to-rose-500 text-white shadow-blue-500/30 shadow-md border-transparent'
                   : 'bg-card-bg border border-card-border text-slate-300 hover:bg-card-bg/5 hover:border-white/20 dark:hover:border-slate-700'
-              }`}
+                }`}
             >
               {page}
             </button>

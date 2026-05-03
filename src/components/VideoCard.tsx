@@ -109,7 +109,7 @@ export default memo(function VideoCard({ vod }: VideoCardProps) {
 
             {/* Remarks badge bottom-left */}
             {vod.vod_remarks && (
-              <div className="absolute bottom-3 left-3 bg-gradient-to-r from-blue-600/90 to-purple-600/90 backdrop-blur-md rounded-lg px-2.5 h-6 flex items-center shadow-lg shadow-blue-600/20 transition-all duration-300 group-hover:opacity-0 group-hover:-translate-y-1">
+              <div className="absolute top-3 left-3 bg-gradient-to-r from-blue-600/90 to-purple-600/90 backdrop-blur-md rounded-lg px-2.5 h-6 flex items-center shadow-lg shadow-blue-600/20 transition-all duration-300 group-hover:opacity-0 group-hover:-translate-y-1">
                 <span className="text-[10px] font-black text-white tracking-wider uppercase">{vod.vod_remarks}</span>
               </div>
             )}
@@ -124,7 +124,7 @@ export default memo(function VideoCard({ vod }: VideoCardProps) {
 
             {/* Year badge — only show if no duration */}
             {!duration && vod.vod_year && (
-              <div className="absolute bottom-3 right-3 bg-white/[0.08] backdrop-blur-md rounded-lg px-2.5 h-6 flex items-center border border-white/[0.08] transition-all duration-300 group-hover:opacity-0 group-hover:-translate-y-1">
+              <div className="absolute top-3 right-3 bg-white/[0.08] backdrop-blur-md rounded-lg px-2.5 h-6 flex items-center border border-white/[0.08] transition-all duration-300 group-hover:opacity-0 group-hover:-translate-y-1">
                 <span className="text-[10px] text-white/80 font-bold tracking-wider">{vod.vod_year}</span>
               </div>
             )}

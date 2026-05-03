@@ -8,6 +8,7 @@ interface CategoryNavProps {
   activeId?: number;
   onSelect: (id?: number) => void;
   onFilterChange?: (filters: FilterState) => void;
+  filters?: FilterState;
 }
 
 export interface FilterState {
@@ -82,7 +83,6 @@ function FilterRow({
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!scrollRef.current) return;
-    setIsDragging(true);
     setStartX(e.pageX - scrollRef.current.offsetLeft);
     setScrollLeft(scrollRef.current.scrollLeft);
   };
@@ -96,11 +96,21 @@ function FilterRow({
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging || !scrollRef.current) return;
-    e.preventDefault();
+    if (!scrollRef.current) return;
+
+    // 마우스를 누른 상태에서 이동 거리가 있을 때만 드래그 상태로 전환
     const x = e.pageX - scrollRef.current.offsetLeft;
     const walk = (x - startX) * 1.5;
-    scrollRef.current.scrollLeft = scrollLeft - walk;
+
+    if (e.buttons === 1) { // 마우스 왼쪽 버튼이 눌려있는 경우
+      if (Math.abs(x - startX) > 5) {
+        setIsDragging(true);
+        e.preventDefault();
+        scrollRef.current.scrollLeft = scrollLeft - walk;
+      }
+    } else if (isDragging) {
+      setIsDragging(false);
+    }
   };
 
   return (
@@ -114,9 +124,8 @@ function FilterRow({
       {/* Scrollable tag list */}
       <div
         ref={scrollRef}
-        className={`flex items-center gap-1 overflow-x-auto scrollbar-hide flex-1 pl-2 ${
-          isDragging ? 'cursor-grabbing select-none *:pointer-events-none' : 'cursor-grab'
-        }`}
+        className={`flex items-center gap-1 overflow-x-auto scrollbar-hide flex-1 pl-2 ${isDragging ? 'cursor-grabbing select-none *:pointer-events-none' : 'cursor-grab'
+          }`}
         onMouseDown={handleMouseDown}
         onMouseLeave={handleMouseLeave}
         onMouseUp={handleMouseUp}
@@ -130,10 +139,10 @@ function FilterRow({
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default memo(function CategoryNav({ categories, activeId, onSelect, onFilterChange }: CategoryNavProps) {
-  const [area, setArea] = useState<string>('全部');
-  const [year, setYear] = useState<string>('全部');
-  const [sort, setSort] = useState<'time' | 'hits' | 'score'>('hits');
+export default memo(function CategoryNav({ categories, activeId, onSelect, onFilterChange, filters }: CategoryNavProps) {
+  const area = filters?.area || '全部';
+  const year = filters?.year || '全部';
+  const sort = filters?.sort || 'hits';
 
   const topLevel = useMemo(() => categories.filter(c => !c.type_pid || c.type_pid === 0), [categories]);
 
@@ -150,28 +159,23 @@ export default memo(function CategoryNav({ categories, activeId, onSelect, onFil
     return categories.filter(c => c.type_pid === activeTopId);
   }, [activeTopId, categories]);
 
-  const onFilterChangeRef = useRef(onFilterChange);
-  useEffect(() => { onFilterChangeRef.current = onFilterChange; });
-
-  useEffect(() => {
-    onFilterChangeRef.current?.({
-      area: area === '全部' ? undefined : area,
-      year: year === '全部' ? undefined : year,
-      sort,
-    });
-  }, [area, year, sort]);
-
-  const handleTopSelect = useCallback((id?: number | string) => {
-    setArea('全部');
-    setYear('全部');
-    onSelect(id as number | undefined);
-  }, [onSelect]);
-
   const handleSubSelect = useCallback((id: number | string) => {
     onSelect(id as number);
   }, [onSelect]);
 
-  const isSubSelected = activeId !== undefined && activeId !== activeTopId;
+  const handleAreaSelect = useCallback((val: string) => {
+    onFilterChange?.({ ...filters, area: val });
+  }, [onFilterChange, filters]);
+
+  const handleYearSelect = useCallback((val: string) => {
+    onFilterChange?.({ ...filters, year: val });
+  }, [onFilterChange, filters]);
+
+  const handleSortSelect = useCallback((val: 'time' | 'hits' | 'score') => {
+    onFilterChange?.({ ...filters, sort: val });
+  }, [onFilterChange, filters]);
+
+  const isSubSelected = activeId !== undefined;
 
   return (
     <nav
@@ -194,7 +198,10 @@ export default memo(function CategoryNav({ categories, activeId, onSelect, onFil
               label="全部"
               value={undefined}
               active={activeId === undefined}
-              onSelect={handleTopSelect}
+              onSelect={(id) => {
+                onFilterChange?.({ area: '全部', year: '全部', sort: 'hits' });
+                onSelect(id);
+              }}
             />
             {topLevel.map(cat => (
               <Tag
@@ -202,7 +209,10 @@ export default memo(function CategoryNav({ categories, activeId, onSelect, onFil
                 label={cat.type_name}
                 value={cat.type_id}
                 active={activeId === cat.type_id || activeTopId === cat.type_id}
-                onSelect={handleTopSelect}
+                onSelect={(id) => {
+                  onFilterChange?.({ area: '全部', year: '全部', sort: 'hits' });
+                  onSelect(id);
+                }}
               />
             ))}
           </FilterRow>
@@ -233,19 +243,19 @@ export default memo(function CategoryNav({ categories, activeId, onSelect, onFil
             <>
               <FilterRow label="地区">
                 {AREAS.map(a => (
-                  <Tag key={a} label={a} value={a} active={area === a} onSelect={setArea} />
+                  <Tag key={a} label={a} value={a} active={area === a} onSelect={handleAreaSelect} />
                 ))}
               </FilterRow>
 
               <FilterRow label="年份">
                 {YEARS.map(y => (
-                  <Tag key={y} label={y} value={y} active={year === y} onSelect={setYear} />
+                  <Tag key={y} label={y} value={y} active={year === y} onSelect={handleYearSelect} />
                 ))}
               </FilterRow>
 
               <FilterRow label="排序">
                 {SORT_OPTIONS.map(opt => (
-                  <Tag key={opt.value} label={opt.label} value={opt.value} active={sort === opt.value} onSelect={setSort as any} />
+                  <Tag key={opt.value} label={opt.label} value={opt.value} active={sort === opt.value} onSelect={handleSortSelect as any} />
                 ))}
               </FilterRow>
             </>
