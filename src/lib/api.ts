@@ -70,7 +70,6 @@ const CATEGORY_MAP: Record<number, (number | undefined)[]> = {
     11: [11, 10, 10, 11, 15, undefined, undefined], // 剧情片
     12: [12, 12, 9, 12, 16, undefined, undefined], // 战争片
     20: [20, 24, 5, 20, 24, undefined, undefined], // 记录片
-    34: [34, 25, 22, 55, 39, undefined, undefined], // 伦理片
 
     // ── 드라마 ──
     2: [2, 2, 2, 2, 8, 1, 2], // 连续剧
@@ -124,7 +123,6 @@ const STATIC_CATEGORIES: CategoryItem[] = [
     { type_id: 11, type_pid: 1, type_name: '剧情片' },
     { type_id: 12, type_pid: 1, type_name: '战争片' },
     { type_id: 20, type_pid: 1, type_name: '纪录片' },
-    { type_id: 34, type_pid: 1, type_name: '伦理片' },
 
     // 드라마 하위
     { type_id: 13, type_pid: 2, type_name: '国产剧' },

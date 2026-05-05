@@ -49,8 +49,16 @@ export default function LivePage() {
                   currentName = nameIdx !== -1 ? line.substring(nameIdx + 1).trim() : '未知频道';
                } else if (line.startsWith('http')) {
                   if (currentName) {
-                     parsedChannels.push({ name: currentName, url: line, group: currentGroup, logo: currentLogo || undefined });
-                     uniqueGroups.add(currentGroup);
+                     // Filter out forbidden categories
+                     const isForbidden = currentGroup.includes('伦理') || 
+                                       currentGroup.includes('福利') || 
+                                       currentGroup.includes('成人') || 
+                                       currentGroup.includes('性');
+                     
+                     if (!isForbidden) {
+                        parsedChannels.push({ name: currentName, url: line, group: currentGroup, logo: currentLogo || undefined });
+                        uniqueGroups.add(currentGroup);
+                     }
                      currentName = '';
                      currentLogo = '';
                   }
