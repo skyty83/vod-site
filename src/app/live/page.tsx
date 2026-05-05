@@ -139,7 +139,7 @@ export default function LivePage() {
                         直播
                      </div>
                      {selectedChannel ? (
-                        <Player url={selectedChannel.url || ''} />
+                        <Player key={selectedChannel.url} url={selectedChannel.url || ''} isLive={true} />
                      ) : (
                         <div className="w-full h-full flex items-center justify-center">
                            <div className="flex flex-col items-center gap-3 text-slate-400">
