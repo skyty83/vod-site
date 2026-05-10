@@ -99,14 +99,7 @@ export default memo(function VideoCard({ vod }: VideoCardProps) {
 
 
             {/* ===== DEFAULT badges (visible when NOT hovered) ===== */}
-            {/* Score badge top-right */}
-            {hasScore && (
-              <div className="absolute top-3 right-3 bg-blue-600/80 backdrop-blur-md rounded-lg px-2.5 py-1 flex items-center gap-1 shadow-lg shadow-blue-600/20 transition-all duration-300 group-hover:opacity-0 group-hover:translate-y-1">
-                <Star size={12} className="text-amber-300" fill="currentColor" />
-                <span className="text-xs font-black text-white tracking-wide">{score.toFixed(1)}</span>
-              </div>
-            )}
-
+      
             {/* Remarks badge bottom-left */}
             {vod.vod_remarks && (
               <div className="absolute top-3 left-3 bg-gradient-to-r from-blue-600/90 to-purple-600/90 backdrop-blur-md rounded-lg px-2.5 h-6 flex items-center shadow-lg shadow-blue-600/20 transition-all duration-300 group-hover:opacity-0 group-hover:-translate-y-1">
