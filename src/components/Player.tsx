@@ -42,6 +42,7 @@ export default function Player({ url, autoplay = true, isLive = true, onEnded }:
       autoplay: autoplay,
       controls: true,
       preload: 'auto',
+      inactivityTimeout: 3000,
       controlBar: {
         skipButtons: {
           forward: 10,
@@ -168,8 +169,12 @@ export default function Player({ url, autoplay = true, isLive = true, onEnded }:
           flex-wrap: wrap !important;
           align-items: center !important;
           padding: 0 1rem 0.5rem 1rem !important;
-          opacity: 1 !important;
-          visibility: visible !important;
+          transition: opacity 0.5s ease, visibility 0.5s ease !important;
+        }
+
+        .vodPlayer .video-js.vjs-user-inactive.vjs-playing .vjs-control-bar {
+          opacity: 0 !important;
+          visibility: hidden !important;
         }
 
         /* Progress Bar - Top Full Width */
