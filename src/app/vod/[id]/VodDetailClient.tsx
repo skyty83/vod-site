@@ -33,11 +33,17 @@ export default function VodDetailClient({ vod }: Props) {
       <div id="player-section" className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 -mt-10 relative z-30">
         <div className="flex flex-col gap-7">
           <section className="bg-card-bg/90 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden shadow-2xl shadow-black/45">
-            <div className="p-6 border-b border-white/5 flex items-center justify-between bg-black/20">
-              <h2 className="text-xl sm:text-2xl font-black flex items-center gap-3">
-                <div className="w-1.5 h-6 bg-gradient-to-b from-blue-500 to-purple-500 rounded-full animate-pulse-glow" />
-                正在播放
-              </h2>
+            <div className="p-5 sm:p-6 border-b border-white/5 flex items-center justify-between bg-black/20">
+              <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                <h2 className="text-xl sm:text-2xl font-black flex items-center gap-3 shrink-0">
+                  <div className="w-1.5 h-6 bg-gradient-to-b from-blue-500 to-purple-500 rounded-full animate-pulse-glow" />
+                  正在播放
+                </h2>
+                <div className="w-1 h-1 rounded-full bg-white/20 shrink-0 hidden sm:block" />
+                <h3 className="text-base sm:text-xl font-bold text-slate-300 truncate">
+                  {vod.vod_name}
+                </h3>
+              </div>
             </div>
             <div className="p-0 sm:p-4">
               <VideoPlayer 

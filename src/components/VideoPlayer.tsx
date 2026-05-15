@@ -12,7 +12,10 @@ interface VideoPlayerProps {
 
 export default function VideoPlayer({ sources: allSources, vod }: VideoPlayerProps) {
    // Find the first source that seems to possess m3u8 streams (since we only support HLS natively), falling back to index 0.
-   const sources = allSources;
+   const sources = allSources.map(source => ({
+      ...source,
+      episodes: [...source.episodes].reverse()
+   }));
    const [activeSource, setActiveSource] = useState(0);
    const [activeEpisode, setActiveEpisode] = useState(0);
    const [activeTab, setActiveTab] = useState<'episodes' | 'info'>('episodes');

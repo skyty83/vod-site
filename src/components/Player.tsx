@@ -27,7 +27,6 @@ export default function Player({ url, autoplay = true, isLive = true, onEnded }:
     const videoElement = document.createElement('video-js');
     videoElement.classList.add('video-js', 'vjs-big-play-centered');
     videoElement.setAttribute('playsinline', 'true');
-    videoElement.setAttribute('crossorigin', 'anonymous');
     containerRef.current.appendChild(videoElement);
 
     // Register custom Chinese language for video.js
