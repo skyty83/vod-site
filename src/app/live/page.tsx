@@ -147,7 +147,7 @@ export default function LivePage() {
                         直播
                      </div>
                      {selectedChannel ? (
-                        <Player key={selectedChannel.url} url={selectedChannel.url || ''} isLive={true} />
+                        <Player key={selectedChannel.url} url={selectedChannel.url ? `/api/proxy/m3u8?url=${encodeURIComponent(selectedChannel.url)}` : ''} isLive={true} />
                      ) : (
                         <div className="w-full h-full flex items-center justify-center">
                            <div className="flex flex-col items-center gap-3 text-slate-400">

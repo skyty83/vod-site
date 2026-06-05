@@ -292,7 +292,7 @@ export default function Player({ url, autoplay = true, isLive = true, onEnded }:
           display: block !important;
           color: #fff;
           font-size: 1.3rem !important;
-          top: -5px !important;
+          top: -3px !important;
           text-shadow: 0 0 10px rgba(0,0,0,0.5);
         }
 

@@ -28,7 +28,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/logo.png" />
         <link rel="icon" type="image/png" sizes="192x192" href="/logo.png" />
       </head>
-      <body className="min-h-screen bg-card-bg dark:bg-[#02050a] text-foreground antialiased transition-colors duration-300 pb-32 lg:pb-0">
+      <body suppressHydrationWarning className="min-h-screen bg-card-bg dark:bg-[#02050a] text-foreground antialiased transition-colors duration-300 pb-32 lg:pb-0">
         <Providers>
           <Suspense fallback={<div className="h-20" />}>
             <Header />
