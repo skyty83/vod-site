@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Search, Tv, X, Menu, Film, PlaySquare, MonitorPlay, PlayCircle, Trophy } from 'lucide-react';
+import { Search, Tv, X, Menu, Film, PlaySquare, MonitorPlay, PlayCircle, Trophy, Music } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 
@@ -13,7 +13,6 @@ const MAIN_NAV = [
   { id: 4, label: '动漫', icon: <Tv size={16} />, href: '/?cat=4' },
   { id: 36, label: '短剧', icon: <Film size={16} />, href: '/?cat=36' },
   { id: 48, label: '体育', icon: <Trophy size={16} />, href: '/?cat=48' },
-  { id: 777, label: '电视直播', icon: <MonitorPlay size={16} />, href: '/live' },
 ];
 
 export default function Header() {
