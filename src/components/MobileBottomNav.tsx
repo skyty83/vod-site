@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { Home, Film, PlaySquare, MonitorPlay, Tv } from 'lucide-react';
+import { Home, Film, PlaySquare, MonitorPlay, Tv, Music } from 'lucide-react';
 
 const MOBILE_NAV_ITEMS = [
   { label: '首页', icon: Home, href: '/' },
@@ -11,6 +11,7 @@ const MOBILE_NAV_ITEMS = [
   { label: '剧集', icon: PlaySquare, href: '/?cat=2' },
   { label: '综艺', icon: MonitorPlay, href: '/?cat=3' },
   { label: '动漫', icon: Tv, href: '/?cat=4' },
+  { label: '音乐', icon: Music, href: '/music' },
 ];
 
 export default function MobileBottomNav() {
@@ -40,7 +41,7 @@ export default function MobileBottomNav() {
         <div
           className="absolute h-18 rounded-[24px] transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] bg-gradient-to-r from-rose-500 via-purple-500 to-blue-500 shadow-[0_4px_20px_rgba(139,92,246,0.4)]"
           style={{
-            width: `calc((100% - 8px) / 5)`,
+            width: `calc((100% - 8px) / ${MOBILE_NAV_ITEMS.length})`,
             left: '4px',
             transform: `translateX(calc(${activeIndex} * 100%))`
           }}

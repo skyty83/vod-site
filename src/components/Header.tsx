@@ -13,6 +13,7 @@ const MAIN_NAV = [
   { id: 4, label: '动漫', icon: <Tv size={16} />, href: '/?cat=4' },
   { id: 36, label: '短剧', icon: <Film size={16} />, href: '/?cat=36' },
   { id: 48, label: '体育', icon: <Trophy size={16} />, href: '/?cat=48' },
+  { id: 888, label: '音乐', icon: <Music size={16} />, href: '/music' },
 ];
 
 export default function Header() {
@@ -84,6 +85,7 @@ export default function Header() {
           <nav className="hidden lg:flex items-center gap-1.5 flex-1">
             {MAIN_NAV.map((item) => {
               const isActive = (pathname === '/live' && item.href === '/live') ||
+                (pathname === '/music' && item.href === '/music') ||
                 (pathname === '/' && activeCat === item.id) ||
                 (pathname === '/' && activeCat === undefined && item.href === '/');
               return (
