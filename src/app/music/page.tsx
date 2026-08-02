@@ -4,13 +4,13 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Search, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX,
   Music, Repeat, Repeat1, Shuffle, Disc3, Heart, Loader2, ListMusic,
-  ChevronDown, User, Library, Mic2,
+  ChevronDown, User, Library, Mic2, TrendingUp, AlignLeft,
 } from 'lucide-react';
 
 const PLUGIN_URL = 'https://fastly.jsdelivr.net/gh/Huibq/keep-alive/Music_Free/xiaowo.js';
 
 type RepeatMode = 'none' | 'all' | 'one';
-type SearchTab = 'music' | 'album' | 'artist';
+type SearchTab = 'music' | 'album' | 'artist' | 'chart';
 
 interface Song {
   id: string;
@@ -37,6 +37,16 @@ interface Artist {
   avatar?: string;
   description?: string;
   worksNum?: number;
+}
+
+interface ChartItem {
+  id: string;
+  title?: string;
+  name?: string;
+  description?: string;
+  artwork?: string;
+  coverImg?: string;
+  playCount?: number;
 }
 
 // ── Hot search suggestions ────────────────────────────────────────────────────
@@ -132,11 +142,16 @@ export default function MusicPage() {
   const [songs, setSongs] = useState<Song[]>([]);
   const [albums, setAlbums] = useState<Album[]>([]);
   const [artists, setArtists] = useState<Artist[]>([]);
+  const [charts, setCharts] = useState<ChartItem[]>([]);
   const [page, setPage] = useState(1);
   const [isEnd, setIsEnd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
+
+  // Lyrics state
+  const [lyrics, setLyrics] = useState<string>('');
+  const [showLyrics, setShowLyrics] = useState(false);
 
   // ── Player state ──────────────────────────────────────────────────────────
   const [isPlaying, setIsPlaying] = useState(false);
@@ -164,6 +179,7 @@ export default function MusicPage() {
 
   // ── Initial load ──────────────────────────────────────────────────────────
   useEffect(() => {
+    loadCharts();
     doSearch('周杰伦', 1, true, 'music');
     setSearchQuery('周杰伦');
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -213,8 +229,29 @@ export default function MusicPage() {
     return data;
   };
 
+  const loadCharts = async () => {
+    try {
+      const data = await apiCall('getTopLists', []);
+      // API returns array or object with data field
+      const list = Array.isArray(data) ? data : (data.data || []);
+      setCharts(list);
+    } catch { /* silently ignore */ }
+  };
+
+  const fetchLyrics = useCallback(async (song: Song) => {
+    setLyrics('');
+    try {
+      const data = await apiCall('getLyric', [song]);
+      const raw: string = data?.rawLrc || data?.lrc || '';
+      // Strip timestamps, keep text
+      const cleaned = raw.replace(/\[\d+:\d+\.?\d*\]/g, '').replace(/\[.+\]/g, '').trim();
+      setLyrics(cleaned || '暂无歌词');
+    } catch { setLyrics('暂无歌词'); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const doSearch = async (query: string, pageNum = 1, reset = true, tab: SearchTab = activeTab) => {
-    if (!query.trim()) return;
+    if (!query.trim() || tab === 'chart') return;
     if (reset) {
       setLoading(true);
       setSongs([]); setAlbums([]); setArtists([]);
@@ -224,12 +261,9 @@ export default function MusicPage() {
     }
     setError('');
     try {
-      const actionMap: Record<SearchTab, string> = {
-        music: 'search',
-        album: 'searchAlbum',
-        artist: 'searchArtist',
-      };
-      const data = await apiCall(actionMap[tab], [query, pageNum, tab]);
+      // All search types use the same 'search' action with different type param
+      const typeMap: Record<string, string> = { music: 'music', album: 'album', artist: 'artist' };
+      const data = await apiCall('search', [query, pageNum, typeMap[tab] || 'music']);
       const items = data.data || [];
       if (reset) {
         if (tab === 'music') setSongs(items);
@@ -267,6 +301,7 @@ export default function MusicPage() {
 
   const handleTabChange = (tab: SearchTab) => {
     setActiveTab(tab);
+    if (tab === 'chart') { if (charts.length === 0) loadCharts(); return; }
     if (currentQuery) doSearch(currentQuery, 1, true, tab);
   };
 
@@ -276,8 +311,11 @@ export default function MusicPage() {
     setIsPlaying(false);
     setPlayLoading(true);
     setError('');
+    setLyrics('');
     if (newQueue) setQueue(newQueue);
     if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ''; }
+    // Fetch lyrics in parallel
+    fetchLyrics(song);
     try {
       const data = await apiCall('getMediaSource', [song, 'standard']);
       const audioUrl = data.url;
@@ -294,7 +332,7 @@ export default function MusicPage() {
       setPlayLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [volume, isMuted]);
+  }, [volume, isMuted, fetchLyrics]);
 
   const playSong = useCallback((song: Song) => {
     playSongFromQueue(song, songs.length > 0 ? songs : undefined);
@@ -453,6 +491,27 @@ export default function MusicPage() {
               </div>
             )}
 
+            {/* Lyrics panel */}
+            {currentSong && lyrics && (
+              <div className="rounded-2xl bg-white/[0.03] border border-white/[0.06] overflow-hidden">
+                <button
+                  onClick={() => setShowLyrics(s => !s)}
+                  className="w-full flex items-center justify-between px-4 py-3 border-b border-white/[0.05] hover:bg-white/[0.03] transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <AlignLeft size={14} className="text-violet-400" />
+                    <span className="text-xs font-bold text-white/50 uppercase tracking-widest">歌词</span>
+                  </div>
+                  <span className="text-[10px] text-white/20">{showLyrics ? '收起' : '展开'}</span>
+                </button>
+                {showLyrics && (
+                  <div className="p-4 max-h-48 overflow-y-auto custom-scrollbar">
+                    <p className="text-xs text-white/40 leading-7 whitespace-pre-wrap">{lyrics}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Queue panel */}
             {showQueue && queue.length > 0 && (
               <div className="rounded-2xl bg-white/[0.04] border border-white/[0.07] overflow-hidden">
@@ -539,16 +598,17 @@ export default function MusicPage() {
                 { id: 'music', label: '单曲', icon: Music },
                 { id: 'album', label: '专辑', icon: Library },
                 { id: 'artist', label: '歌手', icon: Mic2 },
+                { id: 'chart', label: '排行榜', icon: TrendingUp },
               ] as { id: SearchTab; label: string; icon: React.ElementType }[]).map(({ id, label, icon: Icon }) => (
                 <button
                   key={id}
                   onClick={() => handleTabChange(id)}
-                  className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-bold border-b-2 transition-all duration-200 -mb-px ${activeTab === id
+                  className={`flex items-center gap-1.5 px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-bold border-b-2 transition-all duration-200 -mb-px ${activeTab === id
                     ? 'border-violet-500 text-violet-400'
                     : 'border-transparent text-white/30 hover:text-white/60'
                     }`}
                 >
-                  <Icon size={14} />
+                  <Icon size={13} />
                   {label}
                 </button>
               ))}
@@ -753,6 +813,45 @@ export default function MusicPage() {
                   <div className="flex flex-col items-center justify-center py-24 gap-4 text-white/15">
                     <Mic2 size={48} className="opacity-30" />
                     <p className="text-sm">搜索歌手</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Chart Tab ── */}
+            {activeTab === 'chart' && (
+              <div className="min-h-48">
+                {charts.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-24 gap-4 text-white/15">
+                    <div className="w-10 h-10 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+                    <p className="text-sm animate-pulse">加载排行榜...</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {charts.map((chart, i) => (
+                      <button
+                        key={`${chart.id}-${i}`}
+                        onClick={() => {
+                          const name = chart.title || chart.name || '';
+                          setActiveTab('music');
+                          doSearch(name, 1, true, 'music');
+                          setSearchQuery(name);
+                        }}
+                        className="group text-left flex items-center gap-4 p-4 rounded-2xl bg-white/[0.04] hover:bg-violet-500/10 border border-white/[0.06] hover:border-violet-500/20 transition-all duration-200"
+                      >
+                        <div className="relative w-14 h-14 rounded-xl overflow-hidden bg-white/[0.06] shrink-0">
+                          {chart.coverImg || chart.artwork
+                            ? <img src={chart.coverImg || chart.artwork} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                            : <div className="w-full h-full flex items-center justify-center"><TrendingUp size={22} className="text-violet-400/40" /></div>
+                          }
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-bold truncate group-hover:text-violet-300 transition-colors">{chart.title || chart.name}</p>
+                          {chart.description && <p className="text-[11px] text-white/30 truncate mt-0.5">{chart.description}</p>}
+                        </div>
+                        <Play size={16} className="text-white/20 group-hover:text-violet-400 transition-colors shrink-0" fill="currentColor" />
+                      </button>
+                    ))}
                   </div>
                 )}
               </div>
