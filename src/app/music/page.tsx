@@ -180,8 +180,8 @@ export default function MusicPage() {
   // ── Initial load ──────────────────────────────────────────────────────────
   useEffect(() => {
     loadCharts();
-    doSearch('周杰伦', 1, true, 'music');
-    setSearchQuery('周杰伦');
+    doSearch('SHE', 1, true, 'music');
+    setSearchQuery('SHE');
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -441,18 +441,7 @@ export default function MusicPage() {
           {/* ── Left Sidebar (desktop) ── */}
           <aside className="hidden lg:flex w-72 xl:w-80 shrink-0 flex-col gap-6 sticky top-6 self-start">
 
-            {/* App title */}
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-700 flex items-center justify-center shadow-lg shadow-violet-500/30">
-                <span className="text-lg">🐱</span>
-              </div>
-              <div>
-                <h1 className="text-xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-violet-300 to-purple-400">喵喵音乐</h1>
-                <p className="text-[10px] text-white/30 tracking-widest uppercase mt-0.5">Powered by Kuwo</p>
-              </div>
-            </div>
-
-            {/* Album artwork */}
+           {/* Album artwork */}
             <div className="relative">
               <div className={`relative rounded-3xl overflow-hidden shadow-[0_40px_80px_rgba(0,0,0,0.8)] ring-1 ${isPlaying ? 'ring-violet-500/40' : 'ring-white/5'} transition-all duration-500`}>
                 {currentSong?.artwork ? (
@@ -548,14 +537,7 @@ export default function MusicPage() {
           {/* ── Right: Search + List ── */}
           <div className="flex-1 min-w-0 flex flex-col gap-6">
 
-            {/* Mobile header */}
-            <div className="lg:hidden flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-purple-700 flex items-center justify-center">
-                <span className="text-sm">🐱</span>
-              </div>
-              <h1 className="text-lg font-black bg-clip-text text-transparent bg-gradient-to-r from-violet-300 to-purple-400">喵喵音乐</h1>
-            </div>
-
+                     
             {/* Search bar */}
             <form onSubmit={handleSearch}>
               <div className="relative flex items-center group">
