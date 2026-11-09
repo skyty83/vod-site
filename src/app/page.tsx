@@ -1,328 +1,187 @@
-'use client';
-
-import { useEffect, useState, useCallback, Suspense } from 'react';
+import { Suspense } from 'react';
+import Link from 'next/link';
+import type { Metadata } from 'next';
+import { getTypeListing, getSubCategoryIds } from '@/lib/api';
+import { getCategoryName, getTopCategoryId, STATIC_CATEGORIES } from '@/lib/categories';
+import Hero from '@/components/Hero';
+import Ticker from '@/components/Ticker';
+import Shelf from '@/components/Shelf';
+import Mosaic from '@/components/Mosaic';
+import ContinueWatching from '@/components/ContinueWatching';
 import VideoGrid from '@/components/VideoGrid';
 import Pagination from '@/components/Pagination';
-import HeroSlider from '@/components/HeroSlider';
-import CategorySection from '@/components/CategorySection';
-import CategoryNav, { FilterState } from '@/components/CategoryNav';
-import { CategoryItem, VodItem } from '@/types';
-import { getCategories, getVideoList, getSubCategoryIds } from '@/lib/api';
-import { LayoutGrid } from 'lucide-react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import FilterBar from '@/components/FilterBar';
+import { GridSkeleton, HeroSkeleton, MosaicSkeleton, ShelfSkeleton, TickerSkeleton } from '@/components/Skeletons';
 
-// 홈 화면에 표시할 주요 대분류 섹션 ID 목록
-const HOME_SECTION_IDS = [1, 2, 3, 4, 36];
+type SP = Record<string, string | string[] | undefined>;
+const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
-const YEARS = ['2026', '2025', '2024', '2023', '2022', '2021', '2020', '2019', '2018'];
+// 分类页背景上的英文大字
+const WORDMARK: Record<number, string> = {
+  1: 'MOVIES',
+  2: 'SERIES',
+  3: 'VARIETY',
+  4: 'ANIME',
+  36: 'SHORTS',
+  48: 'SPORTS',
+};
 
-function HomeContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const catParam = searchParams.get('cat');
-  const pageParam = searchParams.get('page');
-  const yearParam = searchParams.get('year');
-  const areaParam = searchParams.get('area');
+export async function generateMetadata({ searchParams }: { searchParams: Promise<SP> }): Promise<Metadata> {
+  const cat = parseInt(first((await searchParams).cat) ?? '', 10);
+  const name = Number.isFinite(cat) ? getCategoryName(cat) : undefined;
+  return name ? { title: name } : {};
+}
 
-  const [categories, setCategories] = useState<CategoryItem[]>([]);
-  const [videos, setVideos] = useState<VodItem[]>([]);
-  const [heroVideos, setHeroVideos] = useState<VodItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(parseInt(pageParam || '1'));
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [filterState, setFilterState] = useState<FilterState>({ area: '全部', year: '全部', sort: 'hits' });
+export default async function HomePage({ searchParams }: { searchParams: Promise<SP> }) {
+  const sp = await searchParams;
+  const catRaw = parseInt(first(sp.cat) ?? '', 10);
+  const cat = Number.isFinite(catRaw) && getCategoryName(catRaw) ? catRaw : undefined;
 
-  const activeCategory = catParam ? parseInt(catParam) : undefined;
-  const year = (yearParam && yearParam !== '全部') ? yearParam : (filterState.year !== '全部' ? filterState.year : undefined);
-  const area = (areaParam && areaParam !== '全部') ? areaParam : (filterState.area !== '全部' ? filterState.area : undefined);
+  if (cat === undefined) return <Home />;
 
-  // Initial Content Sync
-  useEffect(() => {
-    const initData = async () => {
-      // 1. 카테고리 먼저 로드
-      const cats = await getCategories();
-      setCategories(cats);
+  const year = first(sp.year);
+  const area = first(sp.area);
+  const sort = first(sp.sort) ?? 'hits';
+  const page = Math.max(1, parseInt(first(sp.page) ?? '1', 10) || 1);
+  const showAll = first(sp.view) === 'all';
 
-      // 2. 히어로 비디오 로드 (각 주요 카테고리별 최신 큐레이션)
-      try {
-        const currentYear = new Date().getFullYear();
-        const promises = HOME_SECTION_IDS.map(async id => {
-          // 영화(1), 드라마(2) 등 주요 카테고리의 최신작 보장을 위해 데이터 소스 확장
-          let fetchIds = [id];
-          if (id === 1) {
-            // 영화의 경우 주요 장르 포함 (액션, 코미디, SF 등)
-            fetchIds = [1, 6, 7, 8, 9];
-          } else if (id === 2) {
-            // 드라마의 경우 다양한 국가별 드라마 포함
-            fetchIds = [2, 13, 14, 15, 16];
-          }
+  return <Category cat={cat} year={year} area={area} sort={sort} page={page} showAll={showAll} />;
+}
 
-          const fetchResults = await Promise.all(
-            fetchIds.map(fid => getVideoList(1, fid, false))
-          );
-
-          let combinedList: VodItem[] = [];
-          const seenIds = new Set();
-
-          fetchResults.forEach(res => {
-            if (res && res.list) {
-              res.list.forEach((v: VodItem) => {
-                if (!seenIds.has(v.vod_id)) {
-                  seenIds.add(v.vod_id);
-                  combinedList.push(v);
-                }
-              });
-            }
-          });
-
-          const validList = combinedList.filter(v => v.vod_name && (v.vod_pic || v.vod_pic_screenshot));
-
-          if (validList.length === 0) return [];
-
-          // 정렬 로직 개선:
-          // 1. 최신 연도 우선 (현재 및 작년) + 업데이트 시간 조합
-          const sortedItems = validList.sort((a, b) => {
-            const yearA = parseInt(a.vod_year || '0');
-            const yearB = parseInt(b.vod_year || '0');
-
-            // 최근 2년(현재년도 포함) 작품에 우선순위 부여
-            const isLatestA = yearA >= currentYear - 1;
-            const isLatestB = yearB >= currentYear - 1;
-
-            if (isLatestA && !isLatestB) return -1;
-            if (!isLatestA && isLatestB) return 1;
-
-            // 동일 그룹 내에서는 업데이트 시간(vod_time) 우선
-            const timeA = a.vod_time ? new Date(a.vod_time).getTime() : 0;
-            const timeB = b.vod_time ? new Date(b.vod_time).getTime() : 0;
-            if (timeB !== timeA) return timeB - timeA;
-
-            // 업데이트 시간도 같으면 조회수(hits) 우선
-            return Number(b.vod_hits || 0) - Number(a.vod_hits || 0);
-          });
-
-          // 각 카테고리별 최상위 1개만 추출
-          return sortedItems[0] || null;
-        });
-
-        const results = await Promise.all(promises);
-        const uniqueItems = results.filter((item): item is VodItem => !!item);
-
-        setHeroVideos(uniqueItems.slice(0, 10));
-      } catch (err) {
-        console.error('Failed to fetch hero videos:', err);
-      }
-    };
-
-    initData();
-  }, []); // 마운트 시 최초 1회만 실행
-
-  useEffect(() => {
-    setPage(parseInt(pageParam || '1'));
-  }, [pageParam]);
-
-  const loadVideos = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await getVideoList(page, activeCategory, true, year, area, filterState.sort);
-      setVideos(res.list as VodItem[]);
-      setTotalPages(res.pagecount);
-      setTotal(res.total);
-    } catch (error) {
-      console.error('Failed to fetch videos:', error);
-    } finally {
-      setLoading(false);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  }, [activeCategory, page, year, area, filterState.sort]);
-
-  useEffect(() => {
-    loadVideos();
-  }, [loadVideos]);
-
-  const handlePageChange = (newPage: number) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('page', newPage.toString());
-    router.push(`/?${params.toString()}`);
-  };
-
-  const handleCategorySelect = useCallback((id?: number) => {
-    const params = new URLSearchParams();
-    if (id !== undefined) params.set('cat', String(id));
-    params.set('page', '1');
-    setFilterState({ area: '全部', year: '全部', sort: 'hits' });
-    router.push(`/?${params.toString()}`);
-  }, [router]);
-
-  const handleFilterChange = useCallback((filters: FilterState) => {
-    setFilterState(filters);
-  }, []);
-
-  const activeCategoryName = activeCategory
-    ? categories.find(c => c.type_id === activeCategory)?.type_name || '探索'
-    : '首页';
-
-  const sectionsToRender = categories.filter(c => HOME_SECTION_IDS.includes(c.type_id));
-
-  const isHome = activeCategory === undefined;
-
-  // 필터(연도, 지역)가 선택된 경우 섹션뷰가 아닌 통합 리스트뷰를 보여줌
-  const hasFilter = (year !== undefined && year !== '全部') || (area !== undefined && area !== '全部');
-  const isSectionalPage = (isHome || (activeCategory !== undefined && getSubCategoryIds(activeCategory).length > 0)) && !hasFilter;
-
-  const getHeaderGradient = (catId?: number) => {
-    if (catId === 1) return 'from-rose-500 to-orange-500'; // 电影
-    if (catId === 3) return 'from-emerald-500 to-teal-500'; // 综艺
-    if (catId === 4) return 'from-purple-500 to-pink-500'; // 动漫
-    return 'from-blue-500 to-rose-500'; // 默认 (연속극 등)
-  };
-
-  const activeSubIds = activeCategory !== undefined ? getSubCategoryIds(activeCategory) : [];
-
-  if (isHome && (categories.length === 0 || heroVideos.length === 0)) {
-    return (
-      <div className="w-full flex-1 flex flex-col items-center justify-center min-h-[80vh] relative overflow-hidden bg-background">
-        <div className="absolute inset-0 z-0 pointer-events-none">
-          <div className="absolute top-1/3 left-1/4 w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[120px] animate-pulse"></div>
-          <div className="absolute bottom-1/3 right-1/4 w-[500px] h-[500px] bg-rose-600/10 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '1s' }}></div>
-        </div>
-        <div className="relative z-10 flex flex-col items-center gap-10">
-          <div className="relative w-32 h-32">
-            <div className="absolute inset-0 border-[3px] border-white/5 rounded-full"></div>
-            <div className="absolute inset-0 border-[3px] border-transparent border-t-blue-500 border-r-purple-500 border-b-rose-500 rounded-full animate-spin" style={{ animationDuration: '1.5s' }}></div>
-            <div className="absolute inset-0 flex items-center justify-center gap-2">
-              <div className="w-1.5 h-6 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
-              <div className="w-1.5 h-10 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-              <div className="w-1.5 h-6 bg-rose-500 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
-            </div>
-          </div>
-          <div className="flex flex-col items-center gap-3">
-            <h2 className="text-2xl sm:text-3xl font-black tracking-[0.3em] text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-rose-400 animate-pulse">
-              加载中
-            </h2>
-            <p className="text-slate-500 text-xs sm:text-sm font-bold tracking-widest uppercase">
-              正在加载精彩内容...
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
+/* ───────────── 首页 ───────────── */
+function Home() {
   return (
-    <div className="w-full flex-1 overflow-x-hidden">
-      {/* =============== HERO SLIDER (TRULY FULL WIDTH) =============== */}
-      {isHome && heroVideos.length > 0 && (
-        <div className="mb-10 sm:mb-14">
-          <HeroSlider items={heroVideos} />
-        </div>
-      )}
+    <>
+      <Suspense fallback={<HeroSkeleton />}>
+        <Hero />
+      </Suspense>
+      <Suspense fallback={<TickerSkeleton />}>
+        <Ticker />
+      </Suspense>
 
-      {/* =============== CATEGORY NAVIGATION =============== */}
-      {!isHome && activeCategory !== undefined && (
-        <CategoryNav
-          categories={categories}
-          activeId={activeCategory}
-          onSelect={handleCategorySelect}
-          onFilterChange={handleFilterChange}
-          filters={filterState}
-        />
-      )}
-
-      {/* =============== MAIN CONTENT (CENTERED) =============== */}
-      <main className="max-w-[1400px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 flex flex-col">
-
-        <div className="flex flex-col gap-10 sm:gap-14">
-          {isSectionalPage && (
-            <>
-              {/* Sectional Page Header */}
-              {activeCategory !== undefined && getSubCategoryIds(activeCategory).length > 0 && (
-                <div className="flex items-center gap-4 mb-4">
-                  <h1 className="text-3xl sm:text-4xl font-black tracking-tight flex items-center gap-3">
-                    <span className={`w-2 h-10 rounded-full bg-gradient-to-b ${getHeaderGradient(activeCategory)}`}></span>
-                    {activeCategoryName}
-                  </h1>
-                </div>
-              )}
-
-              {(isHome ? sectionsToRender : activeSubIds.map(id => categories.find(c => c.type_id === id)).filter((c): c is CategoryItem => !!c)).length > 0 ? (
-                (isHome ? sectionsToRender : activeSubIds.map(id => categories.find(c => c.type_id === id)).filter((c): c is CategoryItem => !!c)).map(cat => (
-                  <CategorySection
-                    key={cat.type_id}
-                    typeId={cat.type_id}
-                    typeName={cat.type_name}
-                  />
-                ))
-              ) : (
-                <div className="flex flex-col items-center justify-center py-20 w-full">
-                  <div className="relative w-20 h-20 mb-6">
-                    <div className="absolute inset-0 bg-gradient-to-tr from-blue-500 to-rose-500 rounded-full animate-spin blur-lg opacity-30"></div>
-                    <div className="absolute inset-0 bg-card-bg rounded-full m-1 flex items-center justify-center border border-white/5">
-                      <LayoutGrid size={28} className="text-white/40 animate-pulse" />
-                    </div>
-                  </div>
-                  <p className="text-slate-400 text-sm font-bold tracking-widest uppercase animate-pulse">
-                    正在加载精彩内容...
-                  </p>
-                </div>
-              )}
-            </>
-          )}
-
-          {/* =============== OTHER CATEGORY LIST / ALL VIDEOS VIEW =============== */}
-          {!isSectionalPage && (
-            <div className="w-full">
-              <div className="flex items-center gap-4 mb-8">
-                <h2 className="text-2xl sm:text-3xl font-black tracking-tight flex items-center gap-3">
-                  <span className="w-1.5 h-8 bg-gradient-to-b from-blue-500 to-rose-500 rounded-full"></span>
-                  {activeCategoryName}
-                </h2>
-                {!loading && total > 0 && (
-                  <span className="inline-flex bg-blue-500/20 text-blue-400 text-xs font-bold px-3 py-1 rounded-full items-center">
-                    共 {total.toLocaleString()} 部
-                  </span>
-                )}
-              </div>
-
-              <VideoGrid videos={videos} loading={loading} />
-
-              {!loading && total > 0 && (
-                <div className="mt-12">
-                  <Pagination
-                    currentPage={page}
-                    totalPages={Math.min(totalPages, 500)}
-                    onPageChange={handlePageChange}
-                  />
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </main>
-    </div>
+      <div className="wrap flex flex-col gap-20 pt-10 lg:gap-28">
+        <ContinueWatching />
+        <Suspense fallback={<ShelfSkeleton title="热门电影" />}>
+          <Shelf typeId={1} title="热门电影" kicker="TOP 10" ranked />
+        </Suspense>
+        <Suspense fallback={<MosaicSkeleton title="追剧精选" />}>
+          <Mosaic typeId={2} title="追剧精选" kicker="HOT" />
+        </Suspense>
+        {[
+          { id: 3, title: '综艺' },
+          { id: 4, title: '动漫' },
+          { id: 36, title: '短剧' },
+        ].map(s => (
+          <Suspense key={s.id} fallback={<ShelfSkeleton title={s.title} />}>
+            <Shelf typeId={s.id} title={s.title} />
+          </Suspense>
+        ))}
+      </div>
+    </>
   );
 }
 
-export default function HomePage() {
-  return (
-    <div className="min-h-screen bg-background text-foreground font-sans transition-colors duration-300 flex flex-col">
-      <Suspense fallback={<div className="flex-1" />}>
-        <HomeContent />
-      </Suspense>
+/* ───────────── 分类页 ───────────── */
+function chipClass(active: boolean) {
+  return `inline-flex h-10 items-center rounded-full px-4 text-sm font-bold whitespace-nowrap transition-colors duration-200 ${
+    active ? 'bg-ink text-paper' : 'text-ink ring-1 ring-line hover:bg-card-2'
+  }`;
+}
 
-      <footer className="bg-card-bg/80 dark:bg-slate-800/80 backdrop-blur-xl py-8 sm:py-10 mt-10">
-        <div className="max-w-[1400px] mx-auto px-4 text-center">
-          <p className="text-slate-400 text-sm font-semibold">
-            © 2026 喵喵影视 · 仅供学习交流
-          </p>
-          <div className="mt-4 flex justify-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-500/80"></span>
-            <span className="w-1.5 h-1.5 rounded-full bg-rose-500/80"></span>
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500/80"></span>
-          </div>
+function Category({ cat, year, area, sort, page, showAll }: {
+  cat: number;
+  year?: string;
+  area?: string;
+  sort: string;
+  page: number;
+  showAll: boolean;
+}) {
+  const top = getTopCategoryId(cat);
+  const subIds = getSubCategoryIds(top);
+  const subs = STATIC_CATEGORIES.filter(c => subIds.includes(c.type_id));
+  const hasFilter = !!(year && year !== '全部') || !!(area && area !== '全部');
+  const hasChildren = getSubCategoryIds(cat).length > 0;
+  const sectional = hasChildren && !showAll && !hasFilter;
+
+  return (
+    <>
+      <header className="relative isolate overflow-hidden border-b border-line">
+        <p
+          aria-hidden="true"
+          className="font-wide text-outline pointer-events-none absolute -bottom-[0.16em] right-[-0.03em] -z-10 select-none whitespace-nowrap text-[24vw] font-extrabold leading-none opacity-[0.18] lg:text-[15rem]"
+        >
+          {WORDMARK[top] ?? 'MIAO'}
+        </p>
+        <div className="wrap py-12 sm:py-16">
+          <h1 className="rise text-6xl font-black leading-none tracking-[-0.055em] text-ink sm:text-8xl">{getCategoryName(cat)}</h1>
+
+          {subs.length > 0 && (
+            <nav aria-label="子分类" className="scrollbar-hide -mx-4 mt-9 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0">
+              <Link href={`/?cat=${top}`} className={chipClass(cat === top && sectional)}>
+                精选
+              </Link>
+              <Link href={`/?cat=${top}&view=all`} className={chipClass(cat === top && !sectional)}>
+                全部
+              </Link>
+              {subs.map(s => (
+                <Link key={s.type_id} href={`/?cat=${s.type_id}`} className={chipClass(cat === s.type_id)}>
+                  {s.type_name}
+                </Link>
+              ))}
+            </nav>
+          )}
+
+          {!sectional && (
+            <div className="mt-7">
+              <FilterBar cat={cat} year={year} area={area} sort={sort} />
+            </div>
+          )}
         </div>
-      </footer>
-    </div>
+      </header>
+
+      <div className="wrap pt-12">
+        {sectional ? (
+          <div className="flex flex-col gap-20">
+            {getSubCategoryIds(cat).map(id => (
+              <Suspense key={id} fallback={<ShelfSkeleton title={getCategoryName(id)} />}>
+                <Shelf typeId={id} title={getCategoryName(id) ?? ''} />
+              </Suspense>
+            ))}
+          </div>
+        ) : (
+          <Suspense key={`${cat}-${year}-${area}-${sort}-${page}`} fallback={<GridSkeleton />}>
+            <Listing cat={cat} year={year} area={area} sort={sort} page={page} />
+          </Suspense>
+        )}
+      </div>
+    </>
+  );
+}
+
+async function Listing({ cat, year, area, sort, page }: {
+  cat: number;
+  year?: string;
+  area?: string;
+  sort: string;
+  page: number;
+}) {
+  const y = year && year !== '全部' ? year : undefined;
+  const a = area && area !== '全部' ? area : undefined;
+  const { list, pagecount, total } = await getTypeListing(page, cat, y, a, sort);
+
+  const query = { cat: String(cat), view: 'all', year: y, area: a, sort: sort !== 'hits' ? sort : undefined };
+
+  return (
+    <>
+      {total > 0 && (
+        <p className="mb-7 text-sm font-medium text-sub">
+          共 <span className="font-wide text-base font-semibold tabular-nums text-ink">{total.toLocaleString()}</span> 部
+        </p>
+      )}
+      <VideoGrid videos={list} />
+      <div className="mt-16">
+        <Pagination current={page} total={Math.min(pagecount, 500)} basePath="/" query={query} />
+      </div>
+    </>
   );
 }

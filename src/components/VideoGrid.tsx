@@ -1,51 +1,29 @@
 import { VodItem } from '@/types';
-import VideoCard from './VideoCard';
+import PosterCard from './PosterCard';
+import { LogoMark } from './Logo';
+import { AllLink } from './Section';
 
-interface VideoGridProps {
-  videos: VodItem[];
-  loading?: boolean;
-}
-
-function SkeletonCard() {
-  return (
-    <div className="bg-card-bg rounded-2xl overflow-hidden shadow-sm">
-      <div className="bg-card-bg/10 animate-pulse aspect-[2/3] w-full" />
-      <div className="p-3 flex flex-col gap-2">
-        <div className="bg-card-bg/10 animate-pulse h-4 rounded w-full" />
-        <div className="bg-card-bg/10 animate-pulse h-3 rounded w-2/3" />
-      </div>
-    </div>
-  );
-}
-
-import { memo } from 'react';
-
-export default memo(function VideoGrid({ videos, loading = false }: VideoGridProps) {
-  if (loading) {
-    return (
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6">
-        {Array.from({ length: 18 }).map((_, i) => (
-          <SkeletonCard key={i} />
-        ))}
-      </div>
-    );
-  }
-
+export default function VideoGrid({ videos }: { videos: Partial<VodItem>[] }) {
   if (videos.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
-        <div className="text-6xl mb-4">🎬</div>
-        <h3 className="text-xl font-bold text-foreground mb-2">暂无内容</h3>
-        <p className="text-slate-400 text-sm">请尝试其他分类或搜索关键词</p>
+      <div className="flex flex-col items-center rounded-panel bg-card px-6 py-20 text-center ring-1 ring-line">
+        <LogoMark className="mb-6 h-16 w-16" />
+        <h3 className="text-3xl font-black tracking-[-0.04em] text-ink sm:text-4xl">没有找到相关内容</h3>
+        <p className="mt-3 max-w-sm text-sm text-sub">换一个关键词, 或者调整筛选条件再试试。</p>
+        <div className="mt-8">
+          <AllLink href="/" label="回到首页" />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6">
+    <ul className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 sm:gap-x-5 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
       {videos.map(vod => (
-        <VideoCard key={vod.vod_id} vod={vod as import('@/types').VodItem} />
+        <li key={vod.vod_id}>
+          <PosterCard vod={vod} />
+        </li>
       ))}
-    </div>
+    </ul>
   );
-});
+}

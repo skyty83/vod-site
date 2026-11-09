@@ -1,111 +1,308 @@
 @import "tailwindcss";
-@import "swiper/css";
-@import "swiper/css/pagination";
-@import "swiper/css/navigation";
 
-@theme {
-  --font-sans: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+/*
+ * 喵喵影视 design system
+ * 方向: 韩国 OTT / 设计工作室的视觉语言。
+ *   - 霓虹青柠单一强调色 (填充时配深色文字, 浅色模式下文字用深橄榄色以保证对比度)
+ *   - 汉字用 Noto Sans SC 900, 拉丁字母与数字用 Geist, 装饰性拉丁大字用 Unbounded
+ *   - 形状规则: 卡片/海报 14px, 面板/播放器 24px, 所有可交互控件 (按钮/标签/输入框) 胶囊形
+ * 主题跟随系统 (prefers-color-scheme)。
+ */
 
-  /* Color Variables for Theme Switching */
-  --color-page-bg: var(--background);
-  --color-page-text: var(--foreground);
+@theme inline {
+  --font-sans: var(--font-latin), var(--font-body), 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
 
-  @keyframes spin-slow {
-    from {
-      transform: rotate(0deg);
-    }
+  --color-paper: var(--paper);
+  --color-card: var(--card);
+  --color-card-2: var(--card-2);
+  --color-ink: var(--ink);
+  --color-sub: var(--sub);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-onaccent: var(--on-accent);
+  /* 强调色用作文字时使用 pop, 两种模式下都满足 WCAG AA */
+  --color-pop: var(--pop);
 
-    to {
-      transform: rotate(360deg);
-    }
+  --radius-card: 14px;
+  --radius-panel: 24px;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+:root {
+  color-scheme: light dark;
+  --paper: #f6f6f3;
+  --card: #fdfdfb;
+  --card-2: #ebebe6;
+  --ink: #0b0b0d;
+  --sub: #5e5e66;
+  --line: rgb(11 11 13 / 0.1);
+  --accent: #c6f432;
+  --on-accent: #0b0b0d;
+  --pop: #4b7600;
+  --grain-opacity: 0.035;
+
+  /* 顶栏高度: 移动端两行 (logo+搜索 / 导航), 桌面端一行 */
+  --header-h: 117px;
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --header-h: 65px;
   }
+}
 
-  @keyframes gradient-x {
-
-    0%,
-    100% {
-      background-position: 0% 50%;
-    }
-
-    50% {
-      background-position: 100% 50%;
-    }
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #0a0a0c;
+    --card: #141417;
+    --card-2: #1e1e23;
+    --ink: #f4f4f0;
+    --sub: #9d9da5;
+    --line: rgb(255 255 255 / 0.09);
+    --accent: #c6f432;
+    --on-accent: #0a0a0c;
+    --pop: #c6f432;
+    --grain-opacity: 0.05;
   }
-
-  @keyframes pulse-glow {
-
-    0%,
-    100% {
-      box-shadow: 0 0 20px 0px rgba(59, 130, 246, 0.4);
-    }
-
-    50% {
-      box-shadow: 0 0 40px 10px rgba(236, 72, 153, 0.6);
-    }
-  }
-
-  @keyframes shimmer {
-    100% {
-      transform: translateX(100%);
-    }
-  }
-
-  --animate-spin-slow: spin-slow 8s linear infinite;
-  --animate-gradient-x: gradient-x 6s ease infinite;
-  --animate-pulse-glow: pulse-glow 3s ease-in-out infinite;
-  --animate-shimmer: shimmer 1.5s infinite;
 }
 
 @layer base {
-  :root {
-    --background: #090a0f;
-    /* Ultra Deep Dark */
-    --foreground: #fcfcfd;
-    /* Crisp White */
-    --card-bg: #11141d;
-    /* Subtle Dark Surface */
-    --card-border: rgba(255, 255, 255, 0.06);
-    /* Soft border */
-    --accent: #3b82f6;
-    /* Vibrant Blue */
-    --secondary: #f43f5e;
-    /* Rose/Pink */
-  }
-
-  .dark {
-    --background: #090a0f;
-    --foreground: #fcfcfd;
-    --card-bg: #11141d;
-    --card-border: rgba(255, 255, 255, 0.06);
-  }
-
   html {
-    scroll-behavior: smooth;
+    background: var(--paper);
   }
 
   body {
+    background: var(--paper);
+    color: var(--ink);
     font-family: var(--font-sans);
-    min-height: 100vh;
-    background:
-      radial-gradient(circle at 0% 0%, rgba(59, 130, 246, 0.08), transparent 45%),
-      radial-gradient(circle at 100% 0%, rgba(244, 63, 94, 0.08), transparent 45%),
-      radial-gradient(circle at 50% 100%, rgba(139, 92, 246, 0.05), transparent 50%),
-      var(--background) !important;
-    background-attachment: fixed !important;
-    color: var(--foreground) !important;
-    transition: background-color 0.4s ease, color 0.4s ease;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* 胶片颗粒: 固定层, 不随滚动重绘 */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    pointer-events: none;
+    opacity: var(--grain-opacity);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  ::selection {
+    background: var(--accent);
+    color: var(--on-accent);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--pop);
+    outline-offset: 3px;
+  }
+
+  button,
+  select,
+  summary {
+    cursor: pointer;
   }
 }
 
-/* Custom scrollbar hide utility since standard Tailwind no-scrollbar plugin needs installation sometimes */
-@utility scrollbar-hide {
-  -ms-overflow-style: none;
-  /* IE and Edge */
-  scrollbar-width: none;
+@utility wrap {
+  @apply mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-10;
+}
 
-  /* Firefox */
+@utility font-wide {
+  font-family: var(--font-wide), var(--font-latin), sans-serif;
+  letter-spacing: -0.02em;
+}
+
+@utility font-display {
+  font-family: var(--font-sans);
+  font-weight: 900;
+  letter-spacing: -0.035em;
+}
+
+@utility shadow-hard {
+  box-shadow: 0 24px 60px -24px rgb(0 0 0 / 0.55);
+}
+
+@utility shadow-lift {
+  box-shadow: 0 28px 50px -22px rgb(0 0 0 / 0.7);
+}
+
+@utility text-outline {
+  color: transparent;
+  -webkit-text-stroke: 1.5px var(--ink);
+}
+
+/* 顶栏: 页面顶部时透明, 滚动后变为毛玻璃 (CSS scroll-driven, 不支持时直接显示毛玻璃) */
+@utility header-glass {
+  background: color-mix(in oklab, var(--paper) 78%, transparent);
+  border-bottom: 1px solid var(--line);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  backdrop-filter: blur(18px) saturate(1.4);
+  @supports (animation-timeline: scroll()) {
+    animation: header-in linear both;
+    animation-timeline: scroll(root);
+    animation-range: 0 140px;
+  }
+}
+
+@utility shelf-scroll {
+  scrollbar-width: none;
   &::-webkit-scrollbar {
     display: none;
-    /* Chrome, Safari and Opera */
   }
+}
+
+@utility scrollbar-hide {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* 进入视口时淡入上移 */
+@utility reveal {
+  @media (prefers-reduced-motion: no-preference) {
+    @supports (animation-timeline: view()) {
+      animation: reveal-in linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 30%;
+    }
+  }
+}
+
+/* 首屏入场: 用 --d 控制错开 */
+@utility rise {
+  @media (prefers-reduced-motion: no-preference) {
+    animation: rise-in 0.9s var(--ease-out-expo) both;
+    animation-delay: var(--d, 0s);
+  }
+}
+
+/* 滚动字幕带: 悬停或键盘聚焦时暂停 */
+@utility marquee-track {
+  @media (prefers-reduced-motion: no-preference) {
+    animation: marquee 48s linear infinite;
+  }
+}
+
+@keyframes header-in {
+  from {
+    background: transparent;
+    border-color: transparent;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+@keyframes reveal-in {
+  from {
+    opacity: 0;
+    transform: translateY(36px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.marquee:hover .marquee-track,
+.marquee:focus-within .marquee-track {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ───────────── 播放器 ───────────── */
+
+/* 操作反馈: 出现后淡出 */
+.player-osd {
+  animation: player-osd 0.7s ease-out both;
+}
+
+@keyframes player-osd {
+  0% {
+    opacity: 0;
+    scale: 0.85;
+  }
+  15% {
+    opacity: 1;
+    scale: 1;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* 自动下一集倒计时填充 */
+.player-countdown {
+  animation: progress linear both;
+}
+
+/* 音量滑块 */
+.player-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(to right, #c6f432 var(--fill, 100%), rgb(255 255 255 / 0.25) var(--fill, 100%));
+  cursor: pointer;
+}
+
+.player-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: #fff;
+  border: 0;
+}
+
+.player-range::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: #fff;
+  border: 0;
 }

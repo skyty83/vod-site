@@ -1,80 +1,76 @@
-'use client';
-
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import Link from 'next/link';
 
 interface PaginationProps {
-  currentPage: number;
-  totalPages: number;
-  onPageChange: (page: number) => void;
+  current: number;
+  total: number;
+  basePath: string;
+  query?: Record<string, string | undefined>;
 }
 
-export default function Pagination({ currentPage, totalPages, onPageChange }: PaginationProps) {
-  if (totalPages <= 1) return null;
+function pagesAround(current: number, total: number): (number | 'gap')[] {
+  const set = new Set<number>([1, total, current]);
+  for (let d = 1; d <= 2; d++) {
+    if (current - d > 1) set.add(current - d);
+    if (current + d < total) set.add(current + d);
+  }
+  const sorted = [...set].sort((a, b) => a - b);
+  const out: (number | 'gap')[] = [];
+  sorted.forEach((p, i) => {
+    if (i > 0 && p - sorted[i - 1] > 1) out.push('gap');
+    out.push(p);
+  });
+  return out;
+}
 
-  const getPages = () => {
-    const pages: (number | '...')[] = [];
-    const delta = 2;
-    const range: number[] = [];
+const base = 'inline-flex h-11 min-w-11 items-center justify-center rounded-full px-4 text-sm font-bold tabular-nums transition-colors duration-200';
 
-    for (let i = Math.max(2, currentPage - delta); i <= Math.min(totalPages - 1, currentPage + delta); i++) {
-      range.push(i);
-    }
+export default function Pagination({ current, total, basePath, query = {} }: PaginationProps) {
+  if (total <= 1) return null;
 
-    if (currentPage - delta > 2) pages.push(1, '...');
-    else pages.push(1);
-
-    pages.push(...range);
-
-    if (currentPage + delta < totalPages - 1) pages.push('...', totalPages);
-    else if (totalPages > 1) pages.push(totalPages);
-
-    return pages;
+  const href = (page: number) => {
+    const p = new URLSearchParams();
+    Object.entries(query).forEach(([k, v]) => v && p.set(k, v));
+    if (page > 1) p.set('page', String(page));
+    const qs = p.toString();
+    return qs ? `${basePath}?${qs}` : basePath;
   };
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-2 pb-4">
-      <div className="flex items-center gap-1.5">
-        {/* Prev */}
-        <button
-          onClick={() => onPageChange(currentPage - 1)}
-          disabled={currentPage === 1}
-          className="w-10 h-10 rounded-xl bg-card-bg border border-card-border text-slate-400 dark:text-slate-400 flex items-center justify-center transition-all hover:bg-card-bg/5 disabled:opacity-40 disabled:hover:bg-transparent shadow-sm mx-1"
-        >
-          <ChevronLeft size={18} />
-        </button>
+    <nav aria-label="分页" className="flex flex-wrap items-center justify-center gap-2">
+      {current > 1 ? (
+        <Link href={href(current - 1)} rel="prev" className={`${base} bg-card text-ink ring-1 ring-line hover:bg-ink hover:text-paper`}>
+          上一页
+        </Link>
+      ) : (
+        <span className={`${base} text-sub/60 ring-1 ring-line`}>上一页</span>
+      )}
 
-        {/* Pages */}
-        {getPages().map((page, i) =>
-          page === '...' ? (
-            <span key={`ellipsis-${i}`} className="px-1.5 text-slate-400 dark:text-slate-400 font-bold">…</span>
-          ) : (
-            <button
-              key={page}
-              onClick={() => onPageChange(page as number)}
-              className={`w-10 h-10 rounded-xl text-sm font-bold transition-all shadow-sm cursor-pointer ${currentPage === page
-                  ? 'bg-gradient-to-br from-blue-500 to-rose-500 text-white shadow-blue-500/30 shadow-md border-transparent'
-                  : 'bg-card-bg border border-card-border text-slate-300 hover:bg-card-bg/5 hover:border-white/20 dark:hover:border-slate-700'
-                }`}
-            >
-              {page}
-            </button>
-          )
-        )}
+      {pagesAround(current, total).map((p, i) =>
+        p === 'gap' ? (
+          <span key={`gap-${i}`} className="px-1 text-sub" aria-hidden="true">
+            …
+          </span>
+        ) : (
+          <Link
+            key={p}
+            href={href(p)}
+            aria-current={p === current ? 'page' : undefined}
+            className={`${base} ${
+              p === current ? 'bg-accent text-onaccent' : 'text-ink hover:bg-card-2'
+            }`}
+          >
+            {p}
+          </Link>
+        )
+      )}
 
-        {/* Next */}
-        <button
-          onClick={() => onPageChange(currentPage + 1)}
-          disabled={currentPage === totalPages}
-          className="w-10 h-10 rounded-xl bg-card-bg border border-card-border text-slate-400 dark:text-slate-400 flex items-center justify-center transition-all hover:bg-card-bg/5 disabled:opacity-40 disabled:hover:bg-transparent shadow-sm mx-1"
-        >
-          <ChevronRight size={18} />
-        </button>
-      </div>
-
-      {/* Page Info */}
-      <div className="sm:ml-4 text-xs font-medium text-slate-400 bg-card-bg/50 border border-card-border px-4 py-2 rounded-xl shadow-sm backdrop-blur-sm">
-        {currentPage} <span className="mx-1 opacity-50">/</span> {totalPages} 页
-      </div>
-    </div>
+      {current < total ? (
+        <Link href={href(current + 1)} rel="next" className={`${base} bg-card text-ink ring-1 ring-line hover:bg-ink hover:text-paper`}>
+          下一页
+        </Link>
+      ) : (
+        <span className={`${base} text-sub/60 ring-1 ring-line`}>下一页</span>
+      )}
+    </nav>
   );
 }

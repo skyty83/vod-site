@@ -1,0 +1,64 @@
+import type { CategoryItem } from '@/types';
+
+// ─── 정적 카테고리 목록 ───────────────────────────────────────────────────────
+// type_pid: 0 = 최상위, 그 외 = 부모 카테고리 ID
+export const STATIC_CATEGORIES: CategoryItem[] = [
+    // 최상위
+    { type_id: 1, type_pid: 0, type_name: '电影' },
+    { type_id: 2, type_pid: 0, type_name: '连续剧' },
+    { type_id: 3, type_pid: 0, type_name: '综艺' },
+    { type_id: 4, type_pid: 0, type_name: '动漫' },
+    { type_id: 36, type_pid: 0, type_name: '短剧' },
+
+    // 영화 하위
+    { type_id: 6, type_pid: 1, type_name: '动作片' },
+    { type_id: 7, type_pid: 1, type_name: '喜剧片' },
+    { type_id: 8, type_pid: 1, type_name: '爱情片' },
+    { type_id: 9, type_pid: 1, type_name: '科幻片' },
+    { type_id: 10, type_pid: 1, type_name: '恐怖片' },
+    { type_id: 11, type_pid: 1, type_name: '剧情片' },
+    { type_id: 12, type_pid: 1, type_name: '战争片' },
+    { type_id: 20, type_pid: 1, type_name: '纪录片' },
+
+    // 드라마 하위
+    { type_id: 13, type_pid: 2, type_name: '国产剧' },
+    { type_id: 14, type_pid: 2, type_name: '香港剧' },
+    { type_id: 15, type_pid: 2, type_name: '韩国剧' },
+    { type_id: 16, type_pid: 2, type_name: '欧美剧' },
+    { type_id: 21, type_pid: 2, type_name: '台湾剧' },
+    { type_id: 22, type_pid: 2, type_name: '日本剧' },
+    { type_id: 23, type_pid: 2, type_name: '海外剧' },
+    { type_id: 24, type_pid: 2, type_name: '泰国剧' },
+
+    // 예능 하위
+    { type_id: 25, type_pid: 3, type_name: '大陆综艺' },
+    { type_id: 26, type_pid: 3, type_name: '港台综艺' },
+    { type_id: 27, type_pid: 3, type_name: '日韩综艺' },
+    { type_id: 28, type_pid: 3, type_name: '欧美综艺' },
+
+    // 애니 하위
+    { type_id: 29, type_pid: 4, type_name: '国产动漫' },
+    { type_id: 30, type_pid: 4, type_name: '日韩动漫' },
+    { type_id: 31, type_pid: 4, type_name: '欧美动漫' },
+    { type_id: 32, type_pid: 4, type_name: '港台动漫' },
+
+    // 스포츠
+    { type_id: 48, type_pid: 0, type_name: '体育赛事' },
+    { type_id: 49, type_pid: 48, type_name: '篮球' },
+    { type_id: 50, type_pid: 48, type_name: '足球' },
+];
+
+/** 顶级分类 id (子分类返回其父级, 顶级返回自身) */
+export function getTopCategoryId(id: number): number {
+    const c = STATIC_CATEGORIES.find(x => x.type_id === id);
+    if (!c) return id;
+    return c.type_pid && c.type_pid !== 0 ? c.type_pid : c.type_id;
+}
+
+export function getSubCategoryIds(parentId: number): number[] {
+    return STATIC_CATEGORIES.filter(c => c.type_pid === parentId).map(c => c.type_id);
+}
+
+export function getCategoryName(id: number): string | undefined {
+    return STATIC_CATEGORIES.find(c => c.type_id === id)?.type_name;
+}

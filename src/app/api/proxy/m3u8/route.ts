@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { assertPublicUrl, safeFetch, UrlRejected } from '@/lib/net';
+
+export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
     const url = request.nextUrl.searchParams.get('url');
     if (!url) return NextResponse.json({ error: 'Missing url' }, { status: 400 });
 
     try {
-        const res = await fetch(url, {
+        await assertPublicUrl(url);
+        const res = await safeFetch(url, {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 'Referer': new URL(url).origin
@@ -20,7 +24,7 @@ export async function GET(request: NextRequest) {
         
         // If it's an m3u8 playlist, rewrite the URLs inside it
         if (contentType.includes('mpegurl') || url.includes('.m3u8') || url.includes('.m3u')) {
-            let text = await res.text();
+            const text = await res.text();
             
             const baseUrl = new URL(url);
             const basePath = baseUrl.origin + baseUrl.pathname.substring(0, baseUrl.pathname.lastIndexOf('/') + 1);
@@ -70,6 +74,7 @@ export async function GET(request: NextRequest) {
         }
 
     } catch (e) {
-        return new NextResponse('Failed', { status: 500 });
+        if (e instanceof UrlRejected) return new NextResponse(e.message, { status: 400 });
+        return new NextResponse('Failed', { status: 502 });
     }
 }

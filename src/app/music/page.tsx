@@ -7,7 +7,7 @@ import {
   ChevronDown, User, Library, Mic2, TrendingUp, AlignLeft,
 } from 'lucide-react';
 
-const PLUGIN_URL = 'https://fastly.jsdelivr.net/gh/Huibq/keep-alive/Music_Free/xiaowo.js';
+const PLUGIN_URL = 'https://raw.githubusercontent.com/Huibq/keep-alive/master/Music_Free/xiaowo.js';
 
 type RepeatMode = 'none' | 'all' | 'one';
 type SearchTab = 'music' | 'album' | 'artist' | 'chart';
@@ -49,21 +49,56 @@ interface ChartItem {
   playCount?: number;
 }
 
-// ── Hot search suggestions ────────────────────────────────────────────────────
+interface ApiResponse {
+  error?: string;
+  data?: unknown[];
+  isEnd?: boolean;
+  url?: string;
+  rawLrc?: string;
+  lrc?: string;
+}
+
+// Hot search suggestions
 const HOT_QUERIES = ['周杰伦', '邓紫棋', '林俊杰', '薛之谦', '华晨宇', '毛不易', '陈奕迅', '王菲'];
 
-// ── Waveform bars animation component ────────────────────────────────────────
-function WaveformBars({ playing }: { playing: boolean }) {
+const TABS: { id: SearchTab; label: string; icon: React.ElementType }[] = [
+  { id: 'music', label: '单曲', icon: Music },
+  { id: 'album', label: '专辑', icon: Library },
+  { id: 'artist', label: '歌手', icon: Mic2 },
+  { id: 'chart', label: '排行榜', icon: TrendingUp },
+];
+
+// Shared class names: every interactive control is a pill
+const ICON_BTN = 'inline-flex items-center justify-center rounded-full text-ink transition-colors hover:bg-card-2 disabled:opacity-40 disabled:hover:bg-transparent';
+const ICON_BTN_ON = 'inline-flex items-center justify-center rounded-full bg-ink text-paper transition-colors';
+const BTN_PRIMARY = 'inline-flex items-center justify-center rounded-full bg-accent text-onaccent transition-transform duration-300 ease-out-expo hover:scale-105 active:scale-95 disabled:opacity-40 disabled:hover:scale-100';
+const COVER_CARD = 'relative overflow-hidden rounded-card bg-card-2 ring-1 ring-line transition duration-500 ease-out-expo group-hover:-translate-y-1 group-hover:shadow-lift';
+
+// API call
+async function apiCall<T = ApiResponse>(action: string, args: unknown[]): Promise<T> {
+  const res = await fetch('/api/music', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pluginUrl: PLUGIN_URL, action, args }),
+  });
+  const data = await res.json();
+  if (data && typeof data === 'object' && 'error' in data && data.error) {
+    throw new Error(String(data.error));
+  }
+  return data as T;
+}
+
+// Equalizer bars: only animate while actually playing (and motion allowed)
+function WaveformBars({ playing, className = 'bg-pop' }: { playing: boolean; className?: string }) {
   return (
-    <div className="flex items-end gap-[2px] h-5">
-      {[0.6, 1, 0.75, 0.5, 0.9].map((h, i) => (
+    <div className="flex items-end gap-[2px] h-4" aria-hidden="true">
+      {[0.6, 1, 0.75, 0.5].map((h, i) => (
         <div
           key={i}
-          className="w-[3px] bg-violet-400 rounded-full"
+          className={`w-[3px] rounded-full ${className} ${playing ? 'musicbar' : ''}`}
           style={{
             height: `${h * 100}%`,
-            animation: playing ? `musicbar 0.7s ease-in-out infinite ${i * 0.12}s` : 'none',
-            transform: playing ? undefined : `scaleY(${h * 0.4})`,
+            animationDelay: `${i * 0.12}s`,
             transformOrigin: 'bottom',
           }}
         />
@@ -72,60 +107,66 @@ function WaveformBars({ playing }: { playing: boolean }) {
   );
 }
 
-// ── Spinning disc artwork ─────────────────────────────────────────────────────
-function DiscArt({ artwork, playing, size = 'md' }: { artwork?: string; playing: boolean; size?: 'sm' | 'md' | 'lg' }) {
-  const sz = size === 'sm' ? 'w-11 h-11' : size === 'lg' ? 'w-full aspect-square' : 'w-14 h-14';
+// Cover thumbnail
+function CoverThumb({ artwork, playing, className = 'w-12 h-12' }: { artwork?: string; playing: boolean; className?: string }) {
   return (
-    <div className={`${sz} rounded-full overflow-hidden bg-gradient-to-br from-violet-900/60 to-purple-900/60 shrink-0 relative shadow-xl`}>
+    <div className={`${className} shrink-0 overflow-hidden rounded-card bg-card-2 ring-1 ring-line`}>
       {artwork
-        ? <img src={artwork} alt="" className={`w-full h-full object-cover transition-all duration-700 ${playing ? 'animate-[spin_12s_linear_infinite]' : ''}`} />
-        : <div className="w-full h-full flex items-center justify-center">
-          <Disc3 size={size === 'lg' ? 64 : size === 'md' ? 24 : 18} className={`text-white/20 ${playing ? 'animate-[spin_8s_linear_infinite]' : ''}`} />
-        </div>
-      }
-      <div className="absolute inset-0 rounded-full ring-4 ring-inset ring-black/30 pointer-events-none" />
-      <div className="absolute inset-[35%] rounded-full bg-[#08090e] shadow-inner" />
+        // eslint-disable-next-line @next/next/no-img-element
+        ? <img src={artwork} alt="" className="w-full h-full object-cover" />
+        : (
+          <div className="w-full h-full flex items-center justify-center text-sub">
+            <Disc3 size={20} strokeWidth={2} className={playing ? 'motion-safe:animate-[spin_8s_linear_infinite]' : ''} />
+          </div>
+        )}
     </div>
   );
 }
 
-// ── Seeker progress bar ───────────────────────────────────────────────────────
-function Seeker({ progress, onSeek }: { progress: number; onSeek: (e: React.MouseEvent<HTMLDivElement>) => void }) {
+// Seek bar: pill track with lime fill
+function Seeker({ progress, onSeek, label = '播放进度' }: { progress: number; onSeek: (e: React.MouseEvent<HTMLDivElement>) => void; label?: string }) {
   return (
     <div
-      className="h-1.5 bg-white/10 rounded-full relative cursor-pointer group"
+      className="group relative w-full py-2 cursor-pointer"
       onClick={onSeek}
+      title={label}
     >
-      <div
-        className="absolute left-0 top-0 h-full bg-gradient-to-r from-violet-500 to-purple-400 rounded-full transition-[width] duration-100"
-        style={{ width: `${progress}%` }}
-      >
-        <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-3.5 h-3.5 bg-white rounded-full shadow-md shadow-violet-500/50 opacity-0 group-hover:opacity-100 transition-opacity" />
+      <div className="relative h-1.5 rounded-full bg-card-2 ring-1 ring-line">
+        <div className="absolute inset-y-0 left-0 rounded-full bg-accent" style={{ width: `${progress}%` }}>
+          <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-3.5 h-3.5 rounded-full bg-ink ring-2 ring-accent opacity-0 transition-opacity group-hover:opacity-100" />
+        </div>
       </div>
     </div>
   );
 }
 
-// ── Volume slider ─────────────────────────────────────────────────────────────
-function VolumeSlider({ volume, muted, onVolumeChange, onToggleMute }: {
+// Volume slider
+function VolumeSlider({ volume, muted, onVolumeChange, onToggleMute, className = 'w-40' }: {
   volume: number; muted: boolean;
   onVolumeChange: (v: number) => void;
   onToggleMute: () => void;
+  className?: string;
 }) {
+  const silent = muted || volume === 0;
   return (
-    <div className="flex items-center gap-2 w-40">
-      <button onClick={onToggleMute} className="text-white/40 hover:text-white transition-colors shrink-0">
-        {muted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
+    <div className={`flex items-center gap-2 ${className}`}>
+      <button
+        onClick={onToggleMute}
+        aria-label={silent ? '取消静音' : '静音'}
+        className={`${ICON_BTN} w-9 h-9 shrink-0`}
+      >
+        {silent ? <VolumeX size={18} strokeWidth={2} /> : <Volume2 size={18} strokeWidth={2} />}
       </button>
-      <div className="flex-1 h-1.5 bg-white/10 rounded-full relative cursor-pointer group/vol">
+      <div className="relative flex-1 h-1.5 rounded-full bg-card-2 ring-1 ring-line">
         <input
           type="range" min="0" max="1" step="0.01"
+          aria-label="音量"
           value={muted ? 0 : volume}
           onChange={e => onVolumeChange(parseFloat(e.target.value))}
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+          className="absolute -inset-y-2 inset-x-0 w-full opacity-0 cursor-pointer z-10"
         />
         <div
-          className="absolute left-0 top-0 bottom-0 bg-white/50 group-hover/vol:bg-violet-400 rounded-full transition-colors"
+          className="absolute inset-y-0 left-0 rounded-full bg-ink"
           style={{ width: `${(muted ? 0 : volume) * 100}%` }}
         />
       </div>
@@ -133,7 +174,37 @@ function VolumeSlider({ volume, muted, onVolumeChange, onToggleMute }: {
   );
 }
 
-// ── Main page ─────────────────────────────────────────────────────────────────
+function Spinner({ label }: { label: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-24 gap-3 text-sub">
+      <Loader2 size={28} strokeWidth={2} className="motion-safe:animate-spin" />
+      <p className="text-sm">{label}</p>
+    </div>
+  );
+}
+
+function Empty({ icon: Icon, text }: { icon: React.ElementType; text: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-24 gap-4 text-sub rounded-panel bg-card ring-1 ring-line">
+      <span className="inline-flex w-16 h-16 items-center justify-center rounded-full bg-card-2">
+        <Icon size={28} strokeWidth={2} />
+      </span>
+      <p className="text-sm font-bold">{text}</p>
+    </div>
+  );
+}
+
+function LoadMore({ loading }: { loading: boolean }) {
+  if (!loading) return null;
+  return (
+    <div className="flex items-center gap-2 text-xs text-sub">
+      <Loader2 size={14} strokeWidth={2} className="motion-safe:animate-spin" />
+      加载更多...
+    </div>
+  );
+}
+
+// Main page
 export default function MusicPage() {
   // ── Search state ──────────────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState('');
@@ -176,6 +247,7 @@ export default function MusicPage() {
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   const progress = duration ? (currentTime / duration) * 100 : 0;
+  const currentLiked = !!currentSong && liked.has(currentSong.id);
 
   // ── Initial load ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -217,21 +289,9 @@ export default function MusicPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEnd, loadingMore, loading, currentQuery, page, activeTab]);
 
-  // ── API call ──────────────────────────────────────────────────────────────
-  const apiCall = async (action: string, args: unknown[]) => {
-    const res = await fetch('/api/music', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pluginUrl: PLUGIN_URL, action, args }),
-    });
-    const data = await res.json();
-    if (data.error) throw new Error(data.error);
-    return data;
-  };
-
   const loadCharts = async () => {
     try {
-      const data = await apiCall('getTopLists', []);
+      const data = await apiCall<ChartItem[] | { data?: ChartItem[] }>('getTopLists', []);
       // API returns array or object with data field
       const list = Array.isArray(data) ? data : (data.data || []);
       setCharts(list);
@@ -247,7 +307,6 @@ export default function MusicPage() {
       const cleaned = raw.replace(/\[\d+:\d+\.?\d*\]/g, '').replace(/\[.+\]/g, '').trim();
       setLyrics(cleaned || '暂无歌词');
     } catch { setLyrics('暂无歌词'); }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const doSearch = async (query: string, pageNum = 1, reset = true, tab: SearchTab = activeTab) => {
@@ -266,17 +325,17 @@ export default function MusicPage() {
       const data = await apiCall('search', [query, pageNum, typeMap[tab] || 'music']);
       const items = data.data || [];
       if (reset) {
-        if (tab === 'music') setSongs(items);
-        else if (tab === 'album') setAlbums(items);
-        else setArtists(items);
+        if (tab === 'music') setSongs(items as Song[]);
+        else if (tab === 'album') setAlbums(items as Album[]);
+        else setArtists(items as Artist[]);
         setCurrentQuery(query);
       } else {
         if (tab === 'music') setSongs(prev => {
           const ids = new Set(prev.map(s => s.id));
-          return [...prev, ...items.filter((s: Song) => !ids.has(s.id))];
+          return [...prev, ...(items as Song[]).filter(s => !ids.has(s.id))];
         });
-        else if (tab === 'album') setAlbums(prev => [...prev, ...items]);
-        else setArtists(prev => [...prev, ...items]);
+        else if (tab === 'album') setAlbums(prev => [...prev, ...(items as Album[])]);
+        else setArtists(prev => [...prev, ...(items as Artist[])]);
       }
       setIsEnd(data.isEnd ?? items.length === 0);
       setPage(pageNum);
@@ -305,6 +364,12 @@ export default function MusicPage() {
     if (currentQuery) doSearch(currentQuery, 1, true, tab);
   };
 
+  const searchAsMusic = (q: string) => {
+    setActiveTab('music');
+    doSearch(q, 1, true, 'music');
+    setSearchQuery(q);
+  };
+
   // ── Playback ──────────────────────────────────────────────────────────────
   const playSongFromQueue = useCallback(async (song: Song, newQueue?: Song[]) => {
     setCurrentSong(song);
@@ -331,7 +396,6 @@ export default function MusicPage() {
     } finally {
       setPlayLoading(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [volume, isMuted, fetchLyrics]);
 
   const playSong = useCallback((song: Song) => {
@@ -396,7 +460,11 @@ export default function MusicPage() {
 
   const toggleLike = (id: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
-    setLiked(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+    setLiked(prev => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
   };
 
   const cycleRepeat = () => {
@@ -408,11 +476,20 @@ export default function MusicPage() {
     return `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
   };
 
-  // ── Render ─────────────────────────────────────────────────────────────────
-  return (
-    <div className="min-h-screen pb-36 lg:pb-28 bg-[#06070d] text-white relative overflow-x-hidden">
+  const playIcon = (size: number, mlClass = '') =>
+    playLoading
+      ? <Loader2 size={size} strokeWidth={2} className="motion-safe:animate-spin" />
+      : isPlaying
+        ? <Pause size={size} strokeWidth={2} fill="currentColor" />
+        : <Play size={size} strokeWidth={2} fill="currentColor" className={mlClass} />;
 
-      {/* ── Hidden audio element ── */}
+  const repeatActive = repeatMode !== 'none';
+
+  // Render
+  return (
+    <div className="min-h-screen pb-40 bg-paper text-ink overflow-x-hidden">
+
+      {/* Hidden audio element */}
       <audio
         ref={audioRef}
         onTimeUpdate={e => setCurrentTime(e.currentTarget.currentTime)}
@@ -420,82 +497,71 @@ export default function MusicPage() {
         onEnded={handleEnded}
       />
 
-      {/* ── Ambient BG ── */}
-      <div className="fixed inset-0 pointer-events-none z-0">
-        {currentSong?.artwork && (
-          <img
-            src={currentSong.artwork}
-            alt=""
-            className="absolute inset-0 w-full h-full object-cover opacity-[0.08] blur-[140px] scale-125 transition-all duration-[2000ms]"
-          />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#06070d]/70 via-[#06070d]/85 to-[#06070d]" />
-        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-violet-600/5 rounded-full blur-[180px] animate-pulse" />
-        <div className="absolute top-1/3 right-1/4 w-[400px] h-[400px] bg-indigo-600/4 rounded-full blur-[120px] animate-pulse delay-1000" />
-      </div>
+      <div className="wrap pt-8 pb-10 lg:pt-14">
+        {/* Page title */}
+        <header className="mb-8 lg:mb-12">
+          <p className="font-wide text-pop text-sm sm:text-base font-extrabold mb-2">MUSIC</p>
+          <h1 className="text-5xl sm:text-7xl font-black tracking-[-0.045em] leading-[0.95]">喵喵音乐</h1>
+        </header>
 
-      {/* ── Main Layout ── */}
-      <div className="relative z-10 max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10">
-        <div className="flex gap-8">
+        <div className="flex gap-8 xl:gap-10">
 
-          {/* ── Left Sidebar (desktop) ── */}
-          <aside className="hidden lg:flex w-72 xl:w-80 shrink-0 flex-col gap-6 sticky top-6 self-start">
+          {/* Left sidebar (desktop) */}
+          <aside className="hidden lg:flex w-80 shrink-0 flex-col gap-4 sticky top-[calc(var(--header-h)+1.5rem)] self-start">
 
-           {/* Album artwork */}
-            <div className="relative">
-              <div className={`relative rounded-3xl overflow-hidden shadow-[0_40px_80px_rgba(0,0,0,0.8)] ring-1 ${isPlaying ? 'ring-violet-500/40' : 'ring-white/5'} transition-all duration-500`}>
+            <div className="rounded-panel bg-card ring-1 ring-line p-4 flex flex-col gap-4">
+              {/* Now playing art */}
+              <div className="relative overflow-hidden rounded-card bg-card-2 shadow-lift">
                 {currentSong?.artwork ? (
-                  <img
-                    src={currentSong.artwork}
-                    alt="cover"
-                    className={`w-full aspect-square object-cover transition-transform duration-700 ${isPlaying ? 'scale-105' : 'scale-100'}`}
-                  />
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={currentSong.artwork} alt="封面" className="w-full aspect-square object-cover" />
                 ) : (
-                  <div className="w-full aspect-square bg-gradient-to-br from-violet-900/30 to-purple-900/30 flex flex-col items-center justify-center gap-4">
-                    <Disc3 size={80} className={`text-white/10 ${isPlaying ? 'animate-[spin_8s_linear_infinite]' : ''}`} />
-                    <p className="text-white/20 text-xs font-medium">暂无封面</p>
+                  <div className="w-full aspect-square flex flex-col items-center justify-center gap-3 text-sub">
+                    <Disc3 size={72} strokeWidth={2} className={isPlaying ? 'motion-safe:animate-[spin_8s_linear_infinite]' : ''} />
+                    <p className="text-xs">暂无封面</p>
                   </div>
                 )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
                 {isPlaying && (
-                  <div className="absolute bottom-4 left-4">
-                    <WaveformBars playing={isPlaying} />
+                  <div className="absolute bottom-3 left-3 inline-flex items-center gap-2 rounded-full bg-ink text-paper pl-2.5 pr-3 h-8">
+                    <WaveformBars playing={isPlaying} className="bg-accent" />
+                    <span className="text-xs font-bold">播放中</span>
                   </div>
                 )}
               </div>
-            </div>
 
-            {/* Now playing info */}
-            <div className="space-y-1 px-1">
-              <h2 className="text-base font-black truncate">{currentSong?.title || '— 暂无播放 —'}</h2>
-              <p className="text-sm text-white/50 truncate">{currentSong?.artist || '选择一首歌曲开始播放'}</p>
-              {currentSong?.album && <p className="text-xs text-white/25 truncate">{currentSong.album}</p>}
-            </div>
-
-            {/* Liked songs quick-count */}
-            {liked.size > 0 && (
-              <div className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-rose-500/10 border border-rose-500/20">
-                <Heart size={14} className="text-rose-400" fill="currentColor" />
-                <span className="text-xs text-rose-300 font-medium">已收藏 {liked.size} 首</span>
+              {/* Now playing info */}
+              <div className="min-w-0 px-1">
+                <h2 className="text-2xl font-black tracking-[-0.035em] truncate">{currentSong?.title || '暂无播放'}</h2>
+                <p className="text-sm text-sub truncate mt-1">{currentSong?.artist || '选择一首歌曲开始播放'}</p>
+                {currentSong?.album && <p className="text-xs text-sub truncate mt-0.5">{currentSong.album}</p>}
               </div>
-            )}
+
+              {/* Liked songs quick-count */}
+              {liked.size > 0 && (
+                <div className="inline-flex self-start items-center gap-2 px-3 h-8 rounded-full bg-card-2">
+                  <Heart size={14} strokeWidth={2} className="text-pop" fill="currentColor" />
+                  <span className="text-xs font-bold tabular-nums">已收藏 {liked.size} 首</span>
+                </div>
+              )}
+            </div>
 
             {/* Lyrics panel */}
             {currentSong && lyrics && (
-              <div className="rounded-2xl bg-white/[0.03] border border-white/[0.06] overflow-hidden">
+              <div className="rounded-panel bg-card ring-1 ring-line p-2">
                 <button
                   onClick={() => setShowLyrics(s => !s)}
-                  className="w-full flex items-center justify-between px-4 py-3 border-b border-white/[0.05] hover:bg-white/[0.03] transition-colors"
+                  aria-expanded={showLyrics}
+                  className="w-full flex items-center justify-between px-4 h-11 rounded-full hover:bg-card-2 transition-colors"
                 >
-                  <div className="flex items-center gap-2">
-                    <AlignLeft size={14} className="text-violet-400" />
-                    <span className="text-xs font-bold text-white/50 uppercase tracking-widest">歌词</span>
-                  </div>
-                  <span className="text-[10px] text-white/20">{showLyrics ? '收起' : '展开'}</span>
+                  <span className="flex items-center gap-2">
+                    <AlignLeft size={16} strokeWidth={2} />
+                    <span className="text-sm font-black tracking-[-0.035em]">歌词</span>
+                  </span>
+                  <span className="text-xs text-sub">{showLyrics ? '收起' : '展开'}</span>
                 </button>
                 {showLyrics && (
-                  <div className="p-4 max-h-48 overflow-y-auto custom-scrollbar">
-                    <p className="text-xs text-white/40 leading-7 whitespace-pre-wrap">{lyrics}</p>
+                  <div className="px-4 pt-2 pb-3 max-h-56 overflow-y-auto shelf-scroll">
+                    <p className="text-sm text-sub leading-7 whitespace-pre-wrap">{lyrics}</p>
                   </div>
                 )}
               </div>
@@ -503,60 +569,65 @@ export default function MusicPage() {
 
             {/* Queue panel */}
             {showQueue && queue.length > 0 && (
-              <div className="rounded-2xl bg-white/[0.04] border border-white/[0.07] overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
-                  <span className="text-xs font-bold text-white/50 uppercase tracking-widest">播放队列</span>
-                  <span className="text-xs text-white/30">{queue.length} 首</span>
+              <div className="rounded-panel bg-card ring-1 ring-line p-2">
+                <div className="flex items-center justify-between px-3 pt-2 pb-2">
+                  <span className="text-sm font-black tracking-[-0.035em]">播放队列</span>
+                  <span className="text-xs text-sub tabular-nums">{queue.length} 首</span>
                 </div>
-                <div className="overflow-y-auto max-h-64 custom-scrollbar">
-                  {queue.map((s, i) => (
-                    <button
-                      key={`${s.id}-${i}`}
-                      onClick={() => playSongFromQueue(s)}
-                      className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${currentSong?.id === s.id ? 'bg-violet-600/15 text-violet-300' : 'hover:bg-white/5 text-white/60'}`}
-                    >
-                      <span className="text-xs w-5 shrink-0 text-center opacity-40">{i + 1}</span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-bold truncate">{s.title}</p>
-                        <p className="text-[10px] text-white/30 truncate">{s.artist}</p>
-                      </div>
-                    </button>
-                  ))}
+                <div className="overflow-y-auto max-h-72 shelf-scroll flex flex-col gap-0.5">
+                  {queue.map((s, i) => {
+                    const active = currentSong?.id === s.id;
+                    return (
+                      <button
+                        key={`${s.id}-${i}`}
+                        onClick={() => playSongFromQueue(s)}
+                        aria-current={active ? 'true' : undefined}
+                        className={`w-full flex items-center gap-3 px-3 py-2 text-left rounded-card transition-colors hover:bg-card-2 ${active ? 'bg-card-2' : ''}`}
+                      >
+                        <span className="w-5 shrink-0 flex justify-center">
+                          {active && isPlaying
+                            ? <WaveformBars playing={isPlaying} />
+                            : <span className={`text-xs tabular-nums ${active ? 'text-pop font-bold' : 'text-sub'}`}>{i + 1}</span>}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className={`text-sm font-bold truncate ${active ? 'text-pop' : 'text-ink'}`}>{s.title}</p>
+                          <p className="text-xs text-sub truncate">{s.artist}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
 
             {/* Keyboard hint */}
-            <div className="flex items-center gap-2 text-[10px] text-white/15 font-mono tracking-wider px-1">
-              <span className="px-1.5 py-0.5 rounded border border-white/10">Space</span> 播放
-              <span className="px-1.5 py-0.5 rounded border border-white/10 ml-1">←→</span> 切换
-              <span className="px-1.5 py-0.5 rounded border border-white/10 ml-1">M</span> 静音
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-2 px-2 text-xs text-sub">
+              <kbd className="px-2 py-0.5 rounded-full ring-1 ring-line font-sans">Space</kbd> 播放
+              <kbd className="px-2 py-0.5 rounded-full ring-1 ring-line font-sans">←→</kbd> 切换
+              <kbd className="px-2 py-0.5 rounded-full ring-1 ring-line font-sans">M</kbd> 静音
             </div>
           </aside>
 
-          {/* ── Right: Search + List ── */}
-          <div className="flex-1 min-w-0 flex flex-col gap-6">
+          {/* Right: search + results */}
+          <div className="flex-1 min-w-0 flex flex-col gap-5">
 
-                     
             {/* Search bar */}
-            <form onSubmit={handleSearch}>
-              <div className="relative flex items-center group">
-                <Search size={16} className="absolute left-4 text-white/30 group-focus-within:text-violet-400 transition-colors z-10" />
+            <form onSubmit={handleSearch} className="flex gap-2">
+              <div className="relative flex-1 flex items-center">
+                <Search size={18} strokeWidth={2} className="absolute left-4 text-sub pointer-events-none" />
                 <input
                   ref={searchInputRef}
                   type="text"
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   placeholder="搜索歌曲、歌手、专辑..."
-                  className="w-full bg-white/[0.06] hover:bg-white/[0.08] border border-white/10 focus:border-violet-500/50 focus:bg-white/[0.09] rounded-2xl py-3.5 pl-11 pr-28 text-sm transition-all outline-none placeholder:text-white/25"
+                  aria-label="搜索音乐"
+                  className="w-full h-12 rounded-full bg-card ring-1 ring-line pl-12 pr-4 text-sm text-ink placeholder:text-sub outline-none focus-visible:ring-2 focus-visible:ring-pop transition-shadow"
                 />
-                <button
-                  type="submit"
-                  className="absolute right-2 px-5 py-2 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white text-xs font-bold transition-all shadow-lg shadow-violet-500/20 active:scale-95"
-                >
-                  搜索
-                </button>
               </div>
+              <button type="submit" className={`${BTN_PRIMARY} h-12 px-6 text-sm font-black shrink-0`}>
+                搜索
+              </button>
             </form>
 
             {/* Hot queries */}
@@ -566,7 +637,7 @@ export default function MusicPage() {
                   <button
                     key={q}
                     onClick={() => { setSearchQuery(q); doSearch(q, 1, true, activeTab); }}
-                    className="px-3 py-1.5 rounded-full bg-white/[0.06] hover:bg-violet-500/20 border border-white/10 hover:border-violet-500/30 text-xs text-white/50 hover:text-violet-300 transition-all"
+                    className="inline-flex items-center h-9 px-4 rounded-full bg-card ring-1 ring-line text-sm font-bold transition-colors hover:bg-card-2"
                   >
                     {q}
                   </button>
@@ -574,117 +645,117 @@ export default function MusicPage() {
               </div>
             )}
 
-            {/* Tabs */}
-            <div className="flex items-center gap-1 border-b border-white/[0.07] pb-0">
-              {([
-                { id: 'music', label: '单曲', icon: Music },
-                { id: 'album', label: '专辑', icon: Library },
-                { id: 'artist', label: '歌手', icon: Mic2 },
-                { id: 'chart', label: '排行榜', icon: TrendingUp },
-              ] as { id: SearchTab; label: string; icon: React.ElementType }[]).map(({ id, label, icon: Icon }) => (
-                <button
-                  key={id}
-                  onClick={() => handleTabChange(id)}
-                  className={`flex items-center gap-1.5 px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-bold border-b-2 transition-all duration-200 -mb-px ${activeTab === id
-                    ? 'border-violet-500 text-violet-400'
-                    : 'border-transparent text-white/30 hover:text-white/60'
-                    }`}
-                >
-                  <Icon size={13} />
-                  {label}
-                </button>
-              ))}
+            {/* Tabs + count */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="inline-flex max-w-full overflow-x-auto scrollbar-hide rounded-full bg-card ring-1 ring-line p-1" role="tablist">
+                {TABS.map(({ id, label, icon: Icon }) => {
+                  const on = activeTab === id;
+                  return (
+                    <button
+                      key={id}
+                      role="tab"
+                      aria-selected={on}
+                      onClick={() => handleTabChange(id)}
+                      className={`inline-flex items-center justify-center gap-1.5 shrink-0 px-4 sm:px-5 h-10 rounded-full text-sm font-bold transition-colors ${on ? 'bg-ink text-paper' : 'text-sub hover:text-ink hover:bg-card-2'}`}
+                    >
+                      <Icon size={15} strokeWidth={2} />
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {(songs.length > 0 || albums.length > 0 || artists.length > 0) && activeTab !== 'chart' && (
+                <div className="flex items-center gap-1.5 text-xs text-sub tabular-nums">
+                  <span>
+                    {activeTab === 'music' ? `已加载 ${songs.length} 首歌曲` :
+                      activeTab === 'album' ? `已加载 ${albums.length} 张专辑` :
+                        activeTab === 'artist' ? `已加载 ${artists.length} 位歌手` : ''}
+                  </span>
+                  {isEnd
+                    ? <span>- 已全部加载</span>
+                    : <span>- 向下滚动加载更多</span>}
+                </div>
+              )}
             </div>
 
             {/* Error banner */}
             {error && (
-              <div className="flex items-center gap-3 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-                <span className="font-bold">⚠</span> {error}
+              <div role="alert" className="flex items-center gap-3 px-3 py-3 rounded-card bg-card ring-1 ring-line text-ink text-sm">
+                <span className="shrink-0 inline-flex items-center h-6 px-2.5 rounded-full bg-ink text-paper text-xs font-bold">错误</span>
+                <span className="min-w-0 break-words">{error}</span>
               </div>
             )}
 
-            {/* Count badge */}
-            {(songs.length > 0 || albums.length > 0 || artists.length > 0) && (
-              <div className="flex items-center gap-2 text-[11px] text-white/25 font-medium px-1">
-                <span>
-                  {activeTab === 'music' ? `已加载 ${songs.length} 首歌曲` :
-                    activeTab === 'album' ? `已加载 ${albums.length} 张专辑` :
-                      `已加载 ${artists.length} 位歌手`}
-                </span>
-                {!isEnd && <span className="text-violet-400/50">· 向下滚动加载更多</span>}
-                {isEnd && <span className="text-white/15">· 已全部加载</span>}
-              </div>
-            )}
-
-            {/* ── Music Tab ── */}
+            {/* Music tab */}
             {activeTab === 'music' && (
-              <div className="rounded-3xl bg-white/[0.025] border border-white/[0.05] overflow-hidden backdrop-blur-xl">
+              <div className="rounded-panel bg-card ring-1 ring-line p-2 sm:p-3">
                 {/* List header */}
-                <div className="grid grid-cols-[2rem_1fr_auto_auto] sm:grid-cols-[2rem_1fr_1fr_auto_auto] gap-3 px-5 py-3.5 border-b border-white/[0.06] text-[10px] font-extrabold text-white/20 uppercase tracking-widest">
+                <div className="grid grid-cols-[2rem_1fr_auto_1.25rem] sm:grid-cols-[2rem_1fr_1fr_auto_1.25rem] gap-3 px-3 pt-1 pb-2 text-xs text-sub">
                   <div className="text-center">#</div>
                   <div>歌曲</div>
                   <div className="hidden sm:block">专辑</div>
-                  <div className="text-center">♡</div>
+                  <div className="text-center">收藏</div>
                   <div />
                 </div>
-                <div ref={listRef} className="overflow-y-auto custom-scrollbar max-h-[60vh] lg:max-h-[62vh]">
+                <div ref={listRef} className="overflow-y-auto shelf-scroll max-h-[60vh] lg:max-h-[62vh]">
                   {loading ? (
-                    <div className="flex flex-col items-center justify-center py-24 gap-4">
-                      <div className="w-10 h-10 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
-                      <p className="text-sm text-white/30 animate-pulse">搜索中...</p>
-                    </div>
+                    <Spinner label="搜索中..." />
                   ) : songs.length > 0 ? (
-                    <div className="p-2">
+                    <div className="flex flex-col gap-0.5">
                       {songs.map((song, i) => {
                         const isActive = currentSong?.id === song.id;
                         const isLiked = liked.has(song.id);
                         return (
                           <div
                             key={`${song.id}-${i}`}
+                            role="button"
+                            tabIndex={0}
+                            aria-current={isActive ? 'true' : undefined}
                             onClick={() => playSong(song)}
-                            className={`group grid grid-cols-[2rem_1fr_auto_auto] sm:grid-cols-[2rem_1fr_1fr_auto_auto] gap-3 items-center px-3 py-2.5 rounded-2xl cursor-pointer transition-all duration-200
-                              ${isActive
-                                ? 'bg-violet-600/15 border border-violet-500/20'
-                                : 'hover:bg-white/[0.05] border border-transparent'
-                              }`}
+                            onKeyDown={e => { if (e.key === 'Enter' && e.target === e.currentTarget) playSong(song); }}
+                            className={`group grid grid-cols-[2rem_1fr_auto_1.25rem] sm:grid-cols-[2rem_1fr_1fr_auto_1.25rem] gap-3 items-center px-3 py-2 rounded-card cursor-pointer transition-colors hover:bg-card-2 ${isActive ? 'bg-card-2' : ''}`}
                           >
-                            {/* # / waveform */}
+                            {/* # / equalizer */}
                             <div className="flex items-center justify-center shrink-0 h-5">
                               {isActive && isPlaying
                                 ? <WaveformBars playing={isPlaying} />
                                 : <>
-                                  <span className={`text-xs font-bold group-hover:hidden ${isActive ? 'text-violet-400' : 'text-white/25'}`}>{i + 1}</span>
-                                  <Play size={12} className="hidden group-hover:block text-white/50 ml-0.5" fill="currentColor" />
+                                  <span className={`text-sm tabular-nums group-hover:hidden ${isActive ? 'text-pop font-black' : 'text-sub font-bold'}`}>{i + 1}</span>
+                                  <Play size={14} strokeWidth={2} className="hidden group-hover:block ml-0.5" fill="currentColor" />
                                 </>
                               }
                             </div>
 
-                            {/* Title + Artist */}
+                            {/* Title + artist */}
                             <div className="flex items-center gap-3 min-w-0">
                               {song.artwork
-                                ? <img src={song.artwork} alt="" className="w-10 h-10 rounded-xl object-cover shadow-md hidden sm:block shrink-0" />
-                                : <div className="w-10 h-10 rounded-xl bg-white/[0.04] hidden sm:flex items-center justify-center shrink-0"><Music size={14} className="text-white/15" /></div>
+                                // eslint-disable-next-line @next/next/no-img-element
+                                ? <img src={song.artwork} alt="" className="w-11 h-11 rounded-card ring-1 ring-line object-cover hidden sm:block shrink-0" />
+                                : <div className="w-11 h-11 rounded-card bg-card-2 hidden sm:flex items-center justify-center shrink-0 text-sub"><Music size={16} strokeWidth={2} /></div>
                               }
                               <div className="min-w-0">
-                                <p className={`text-sm font-bold truncate ${isActive ? 'text-violet-300' : 'text-white/90'}`}>{song.title}</p>
-                                <p className="text-xs text-white/35 truncate mt-0.5">{song.artist}</p>
+                                <p className={`text-sm font-bold truncate ${isActive ? 'text-pop' : 'text-ink'}`}>{song.title}</p>
+                                <p className="text-xs text-sub truncate mt-0.5">{song.artist}</p>
                               </div>
                             </div>
 
                             {/* Album */}
-                            <p className="hidden sm:block text-xs text-white/30 truncate pr-2">{song.album}</p>
+                            <p className="hidden sm:block text-xs text-sub truncate pr-2">{song.album}</p>
 
                             {/* Like */}
                             <button
-                              onClick={e => { e.stopPropagation(); toggleLike(song.id); }}
-                              className={`p-1.5 transition-all ${isLiked ? 'text-rose-400 scale-110' : 'text-white/15 hover:text-white/50'}`}
+                              onClick={e => toggleLike(song.id, e)}
+                              aria-label={isLiked ? '取消收藏' : '收藏'}
+                              aria-pressed={isLiked}
+                              className={`${ICON_BTN} w-9 h-9 justify-self-center ${isLiked ? 'text-pop' : 'text-sub hover:text-ink'}`}
                             >
-                              <Heart size={14} fill={isLiked ? 'currentColor' : 'none'} />
+                              <Heart size={16} strokeWidth={2} fill={isLiked ? 'currentColor' : 'none'} />
                             </button>
 
                             {/* Loading indicator */}
-                            <div className="w-4 flex items-center justify-center">
-                              {isActive && playLoading && <Loader2 size={12} className="animate-spin text-violet-400" />}
+                            <div className="w-5 flex items-center justify-center">
+                              {isActive && playLoading && <Loader2 size={14} strokeWidth={2} className="motion-safe:animate-spin text-pop" />}
                             </div>
                           </div>
                         );
@@ -692,146 +763,124 @@ export default function MusicPage() {
 
                       {/* Sentinel */}
                       <div ref={sentinelRef} className="py-5 flex items-center justify-center">
-                        {loadingMore && (
-                          <div className="flex items-center gap-2 text-xs text-white/25">
-                            <div className="w-4 h-4 border border-violet-500/40 border-t-violet-400 rounded-full animate-spin" />
-                            加载更多...
-                          </div>
-                        )}
+                        <LoadMore loading={loadingMore} />
                         {isEnd && songs.length > 0 && (
-                          <p className="text-xs text-white/15">— 共 {songs.length} 首 —</p>
+                          <p className="text-xs text-sub tabular-nums">共 {songs.length} 首</p>
                         )}
                       </div>
                     </div>
                   ) : (
-                    <div className="flex flex-col items-center justify-center py-24 gap-4 text-white/15">
-                      <Music size={48} className="opacity-30" />
-                      <p className="text-sm">搜索歌曲，开始播放</p>
+                    <div className="flex flex-col items-center justify-center py-24 gap-4 text-sub">
+                      <span className="inline-flex w-16 h-16 items-center justify-center rounded-full bg-card-2">
+                        <Music size={28} strokeWidth={2} />
+                      </span>
+                      <p className="text-sm font-bold">搜索歌曲，开始播放</p>
                     </div>
                   )}
                 </div>
               </div>
             )}
 
-            {/* ── Album Tab ── */}
+            {/* Album tab */}
             {activeTab === 'album' && (
               <div className="min-h-48">
                 {loading ? (
-                  <div className="flex flex-col items-center justify-center py-24 gap-4">
-                    <div className="w-10 h-10 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
-                    <p className="text-sm text-white/30 animate-pulse">搜索中...</p>
-                  </div>
+                  <Spinner label="搜索中..." />
                 ) : albums.length > 0 ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-x-4 gap-y-6">
                     {albums.map((album, i) => (
-                      <div key={`${album.id}-${i}`} className="group flex flex-col gap-3 cursor-pointer" onClick={() => {
-                        setActiveTab('music');
-                        doSearch(album.artist, 1, true, 'music');
-                        setSearchQuery(album.artist);
-                      }}>
-                        <div className="relative rounded-2xl overflow-hidden aspect-square shadow-xl bg-white/[0.04]">
+                      <button
+                        key={`${album.id}-${i}`}
+                        onClick={() => searchAsMusic(album.artist)}
+                        className="group text-left flex flex-col gap-3 rounded-card"
+                      >
+                        <div className={`${COVER_CARD} aspect-square w-full`}>
                           {album.artwork
-                            ? <img src={album.artwork} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                            : <div className="w-full h-full flex items-center justify-center"><Library size={36} className="text-white/15" /></div>
+                            // eslint-disable-next-line @next/next/no-img-element
+                            ? <img src={album.artwork} alt="" className="w-full h-full object-cover" />
+                            : <div className="w-full h-full flex items-center justify-center text-sub"><Library size={36} strokeWidth={2} /></div>
                           }
-                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-300 flex items-center justify-center">
-                            <Play size={28} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="currentColor" />
-                          </div>
                         </div>
-                        <div className="min-w-0 px-1">
+                        <div className="min-w-0 px-0.5">
                           <p className="text-sm font-bold truncate">{album.title}</p>
-                          <p className="text-xs text-white/40 truncate mt-0.5">{album.artist}</p>
-                          {album.date && <p className="text-[10px] text-white/20 mt-0.5">{album.date}</p>}
+                          <p className="text-xs text-sub truncate mt-0.5">{album.artist}</p>
+                          {album.date && <p className="text-xs text-sub mt-0.5 tabular-nums">{album.date}</p>}
                         </div>
-                      </div>
+                      </button>
                     ))}
-                    <div ref={sentinelRef} className="py-2">
-                      {loadingMore && <div className="flex items-center gap-2 text-xs text-white/25 px-2"><div className="w-4 h-4 border border-violet-500/40 border-t-violet-400 rounded-full animate-spin" />加载中...</div>}
+                    <div ref={sentinelRef} className="col-span-full py-2 flex justify-center">
+                      <LoadMore loading={loadingMore} />
                     </div>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center py-24 gap-4 text-white/15">
-                    <Library size={48} className="opacity-30" />
-                    <p className="text-sm">搜索专辑</p>
-                  </div>
+                  <Empty icon={Library} text="搜索专辑" />
                 )}
               </div>
             )}
 
-            {/* ── Artist Tab ── */}
+            {/* Artist tab */}
             {activeTab === 'artist' && (
               <div className="min-h-48">
                 {loading ? (
-                  <div className="flex flex-col items-center justify-center py-24 gap-4">
-                    <div className="w-10 h-10 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
-                    <p className="text-sm text-white/30 animate-pulse">搜索中...</p>
-                  </div>
+                  <Spinner label="搜索中..." />
                 ) : artists.length > 0 ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-x-4 gap-y-6">
                     {artists.map((artist, i) => (
-                      <div key={`${artist.id}-${i}`} className="group flex flex-col items-center gap-3 cursor-pointer" onClick={() => {
-                        setActiveTab('music');
-                        doSearch(artist.name, 1, true, 'music');
-                        setSearchQuery(artist.name);
-                      }}>
-                        <div className="relative w-full aspect-square rounded-full overflow-hidden shadow-xl bg-white/[0.04] ring-2 ring-transparent group-hover:ring-violet-500/40 transition-all duration-300">
+                      <button
+                        key={`${artist.id}-${i}`}
+                        onClick={() => searchAsMusic(artist.name)}
+                        className="group text-left flex flex-col gap-3 rounded-card"
+                      >
+                        <div className={`${COVER_CARD} aspect-square w-full`}>
                           {artist.avatar
-                            ? <img src={artist.avatar} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                            : <div className="w-full h-full flex items-center justify-center"><User size={36} className="text-white/15" /></div>
+                            // eslint-disable-next-line @next/next/no-img-element
+                            ? <img src={artist.avatar} alt="" className="w-full h-full object-cover" />
+                            : <div className="w-full h-full flex items-center justify-center text-sub"><User size={36} strokeWidth={2} /></div>
                           }
-                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300" />
                         </div>
-                        <div className="text-center min-w-0 w-full px-1">
+                        <div className="min-w-0 w-full px-0.5">
                           <p className="text-sm font-bold truncate">{artist.name}</p>
-                          {artist.worksNum && <p className="text-xs text-white/30 mt-0.5">{artist.worksNum} 首歌曲</p>}
+                          {artist.worksNum ? <p className="text-xs text-sub mt-0.5 tabular-nums">{artist.worksNum} 首歌曲</p> : null}
                         </div>
-                      </div>
+                      </button>
                     ))}
-                    <div ref={sentinelRef} className="py-2">
-                      {loadingMore && <div className="flex items-center gap-2 text-xs text-white/25 px-2"><div className="w-4 h-4 border border-violet-500/40 border-t-violet-400 rounded-full animate-spin" />加载中...</div>}
+                    <div ref={sentinelRef} className="col-span-full py-2 flex justify-center">
+                      <LoadMore loading={loadingMore} />
                     </div>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center py-24 gap-4 text-white/15">
-                    <Mic2 size={48} className="opacity-30" />
-                    <p className="text-sm">搜索歌手</p>
-                  </div>
+                  <Empty icon={Mic2} text="搜索歌手" />
                 )}
               </div>
             )}
 
-            {/* ── Chart Tab ── */}
+            {/* Chart tab */}
             {activeTab === 'chart' && (
               <div className="min-h-48">
                 {charts.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-24 gap-4 text-white/15">
-                    <div className="w-10 h-10 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
-                    <p className="text-sm animate-pulse">加载排行榜...</p>
-                  </div>
+                  <Spinner label="加载排行榜..." />
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-x-4 gap-y-6">
                     {charts.map((chart, i) => (
                       <button
                         key={`${chart.id}-${i}`}
-                        onClick={() => {
-                          const name = chart.title || chart.name || '';
-                          setActiveTab('music');
-                          doSearch(name, 1, true, 'music');
-                          setSearchQuery(name);
-                        }}
-                        className="group text-left flex items-center gap-4 p-4 rounded-2xl bg-white/[0.04] hover:bg-violet-500/10 border border-white/[0.06] hover:border-violet-500/20 transition-all duration-200"
+                        onClick={() => searchAsMusic(chart.title || chart.name || '')}
+                        className="group text-left flex flex-col gap-3 rounded-card"
                       >
-                        <div className="relative w-14 h-14 rounded-xl overflow-hidden bg-white/[0.06] shrink-0">
+                        <div className={`${COVER_CARD} aspect-square w-full`}>
                           {chart.coverImg || chart.artwork
-                            ? <img src={chart.coverImg || chart.artwork} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                            : <div className="w-full h-full flex items-center justify-center"><TrendingUp size={22} className="text-violet-400/40" /></div>
+                            // eslint-disable-next-line @next/next/no-img-element
+                            ? <img src={chart.coverImg || chart.artwork} alt="" className="w-full h-full object-cover" />
+                            : <div className="w-full h-full flex items-center justify-center text-sub"><TrendingUp size={36} strokeWidth={2} /></div>
                           }
+                          <span className="absolute right-3 bottom-3 inline-flex w-11 h-11 items-center justify-center rounded-full bg-accent text-onaccent shadow-lift opacity-0 translate-y-2 transition duration-300 ease-out-expo group-hover:opacity-100 group-hover:translate-y-0 group-focus-visible:opacity-100 group-focus-visible:translate-y-0">
+                            <Play size={18} strokeWidth={2} fill="currentColor" className="ml-0.5" />
+                          </span>
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-bold truncate group-hover:text-violet-300 transition-colors">{chart.title || chart.name}</p>
-                          {chart.description && <p className="text-[11px] text-white/30 truncate mt-0.5">{chart.description}</p>}
+                        <div className="min-w-0 px-0.5">
+                          <p className="text-sm font-bold truncate">{chart.title || chart.name}</p>
+                          {chart.description && <p className="text-xs text-sub truncate mt-0.5">{chart.description}</p>}
                         </div>
-                        <Play size={16} className="text-white/20 group-hover:text-violet-400 transition-colors shrink-0" fill="currentColor" />
                       </button>
                     ))}
                   </div>
@@ -839,234 +888,217 @@ export default function MusicPage() {
               </div>
             )}
 
-          </div>{/* end right column */}
+          </div>
         </div>
       </div>
 
-      {/* ═══════════════════════════════════════════════════════════════════════
-          ── Mobile Fullscreen Player ──
-      ═════════════════════════════════════════════════════════════════════════ */}
+      {/* Mobile fullscreen player */}
       <div
-        className={`fixed inset-0 z-[60] flex flex-col lg:hidden transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${showFullPlayer ? 'translate-y-0' : 'translate-y-full pointer-events-none'}`}
+        className={`fixed inset-0 z-[70] flex flex-col lg:hidden bg-paper overflow-hidden transition-transform duration-500 ease-out-expo ${showFullPlayer ? 'translate-y-0' : 'translate-y-full pointer-events-none'}`}
+        aria-hidden={!showFullPlayer}
       >
-        {/* BG */}
-        <div className="absolute inset-0 bg-[#0a0b10]" />
+        {/* Ambient: blurred current cover */}
         {currentSong?.artwork && (
-          <img src={currentSong.artwork} alt="" className="absolute inset-0 w-full h-full object-cover opacity-20 blur-[80px] scale-110 pointer-events-none transition-all duration-[1500ms]" />
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={currentSong.artwork} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover blur-3xl opacity-50 scale-125 pointer-events-none" />
         )}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-[#0a0b10]/60 to-[#0a0b10] pointer-events-none" />
+        <div className="absolute inset-0 bg-paper/60 pointer-events-none" aria-hidden="true" />
 
-        {/* Content */}
-        <div className="relative z-10 flex flex-col h-full">
-          {/* Drag handle / close */}
-          <div className="flex justify-center items-center pt-4 pb-2 shrink-0">
-            <button onClick={() => setShowFullPlayer(false)} className="flex flex-col items-center gap-2 group">
-              <div className="w-10 h-1 rounded-full bg-white/20 group-active:bg-white/40 transition-colors" />
-              <ChevronDown size={16} className="text-white/20" />
-            </button>
-          </div>
-
-          <div className="flex-1 flex flex-col px-8 pb-8 gap-7 overflow-auto min-h-0">
-            {/* Album art */}
-            <div className="flex-1 flex items-center justify-center py-2">
-              <div className={`w-full max-w-[280px] aspect-square rounded-[2.5rem] overflow-hidden shadow-[0_50px_100px_rgba(0,0,0,0.8)] transition-all duration-700 ${isPlaying ? 'scale-100' : 'scale-90 opacity-80'}`}>
-                {currentSong?.artwork
-                  ? <img src={currentSong.artwork} alt="cover" className="w-full h-full object-cover" />
-                  : <div className="w-full h-full bg-gradient-to-br from-violet-900/30 to-purple-900/30 flex items-center justify-center">
-                    <Disc3 size={100} className={`text-white/15 ${isPlaying ? 'animate-[spin_8s_linear_infinite]' : ''}`} />
-                  </div>
-                }
-              </div>
-            </div>
-
-            {/* Song info */}
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0 flex-1">
-                <h2 className="text-2xl font-black text-white truncate">{currentSong?.title || '—'}</h2>
-                <p className="text-sm text-white/50 truncate mt-1">{currentSong?.artist || '请选择音乐'}</p>
-              </div>
-              <button
-                onClick={() => currentSong && toggleLike(currentSong.id)}
-                className={`mt-1 shrink-0 p-2 rounded-full transition-all ${currentSong && liked.has(currentSong.id) ? 'text-rose-400 scale-110' : 'text-white/30'}`}
-              >
-                <Heart size={24} fill={currentSong && liked.has(currentSong.id) ? 'currentColor' : 'none'} />
-              </button>
-            </div>
-
-            {/* Seeker */}
-            <div className="space-y-2">
-              <Seeker progress={progress} onSeek={seekTo} />
-              <div className="flex justify-between text-xs text-white/30 font-medium">
-                <span>{fmt(currentTime)}</span>
-                <span>{fmt(duration)}</span>
-              </div>
-            </div>
-
-            {/* Controls */}
-            <div className="flex items-center justify-around">
-              <button onClick={cycleRepeat} className={`p-2 transition-all ${repeatMode !== 'none' ? 'text-violet-400' : 'text-white/30'}`}>
-                {repeatMode === 'one' ? <Repeat1 size={22} /> : <Repeat size={22} />}
-              </button>
-              <button onClick={playPrev} className="p-2 text-white/70 active:text-white active:scale-90 transition-all">
-                <SkipBack size={32} fill="currentColor" />
-              </button>
-              <button
-                onClick={togglePlay}
-                disabled={!currentSong || playLoading}
-                className="w-18 h-18 w-[72px] h-[72px] rounded-full bg-white text-black flex items-center justify-center active:scale-90 transition-transform shadow-2xl disabled:opacity-40"
-              >
-                {playLoading
-                  ? <div className="w-6 h-6 border-2 border-black/20 border-t-black rounded-full animate-spin" />
-                  : isPlaying ? <Pause size={30} fill="currentColor" /> : <Play size={30} fill="currentColor" className="ml-1" />
-                }
-              </button>
-              <button onClick={playNext} className="p-2 text-white/70 active:text-white active:scale-90 transition-all">
-                <SkipForward size={32} fill="currentColor" />
-              </button>
-              <button onClick={() => setShuffle(s => !s)} className={`p-2 transition-all ${shuffle ? 'text-violet-400' : 'text-white/30'}`}>
-                <Shuffle size={22} />
-              </button>
-            </div>
-
-            {/* Volume */}
-            <VolumeSlider volume={volume} muted={isMuted} onVolumeChange={handleVolumeChange} onToggleMute={toggleMute} />
-          </div>
-        </div>
-      </div>
-
-      {/* ═══════════════════════════════════════════════════════════════════════
-          ── Bottom Player Bar ──
-      ═════════════════════════════════════════════════════════════════════════ */}
-      <div className="fixed bottom-[96px] lg:bottom-0 left-0 right-0 z-[90] px-3 lg:px-0 pointer-events-none">
-
-        {/* Desktop bg */}
-        <div className="hidden lg:block absolute inset-0 bg-[#06070d]/90 backdrop-blur-3xl border-t border-white/[0.06]" />
-
-        {/* Mobile floating pill bg */}
-        <div className="lg:hidden absolute inset-0 mx-auto max-w-lg bg-[#141520]/85 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.8),0_0_20px_rgba(139,92,246,0.15)] overflow-hidden">
-          {/* pill progress bar */}
-          <div className="absolute top-0 left-0 right-0 h-[2px] bg-white/5">
-            <div className="h-full bg-gradient-to-r from-violet-500 to-purple-400 transition-[width] duration-300" style={{ width: `${progress}%` }} />
-          </div>
-        </div>
-
-        {/* Desktop progress */}
-        <div className="hidden lg:block h-[3px] bg-white/[0.08] cursor-pointer group relative z-10" onClick={seekTo}>
-          <div
-            className="absolute left-0 top-0 h-full bg-gradient-to-r from-violet-500 to-purple-400 transition-[width] duration-200 group-hover:h-[5px] group-hover:-translate-y-[1px]"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-
-        {/* Mobile mini bar */}
-        <div
-          className="lg:hidden pointer-events-auto relative z-10 flex items-center gap-3 px-4 h-[68px] cursor-pointer select-none max-w-lg mx-auto"
-          onClick={() => currentSong && setShowFullPlayer(true)}
-        >
-          {/* Disc art */}
-          <div className="shrink-0">
-            <DiscArt artwork={currentSong?.artwork} playing={isPlaying} size="sm" />
-          </div>
-          {/* Info */}
-          <div className="min-w-0 flex-1">
-            <p className="text-[14px] font-bold text-white truncate">{currentSong?.title || '喵喵音乐'}</p>
-            <p className="text-[11px] text-white/40 truncate mt-0.5">{currentSong?.artist || '点击搜索，开始播放'}</p>
-          </div>
-          {/* Like */}
+        <div className="relative flex justify-center items-center pt-4 pb-2 shrink-0">
           <button
-            onClick={e => { e.stopPropagation(); currentSong && toggleLike(currentSong.id); }}
-            className={`p-2.5 shrink-0 transition-colors ${currentSong && liked.has(currentSong.id) ? 'text-rose-400' : 'text-white/20'}`}
+            onClick={() => setShowFullPlayer(false)}
+            aria-label="收起播放器"
+            className="inline-flex items-center justify-center h-10 px-6 rounded-full bg-card ring-1 ring-line text-ink transition-colors hover:bg-card-2"
           >
-            <Heart size={19} fill={currentSong && liked.has(currentSong.id) ? 'currentColor' : 'none'} />
-          </button>
-          {/* Play/Pause */}
-          <button
-            onClick={e => { e.stopPropagation(); togglePlay(); }}
-            disabled={!currentSong || playLoading}
-            className="w-11 h-11 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 text-white flex items-center justify-center active:scale-90 transition-all shadow-lg shadow-violet-500/25 disabled:opacity-40 shrink-0"
-          >
-            {playLoading
-              ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              : isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-0.5" />
-            }
+            <ChevronDown size={20} strokeWidth={2} />
           </button>
         </div>
 
-        {/* Desktop bar */}
-        <div className="hidden lg:grid grid-cols-3 pointer-events-auto relative z-10 max-w-screen-xl mx-auto px-6 lg:px-8 h-[72px] items-center gap-4">
+        <div className="relative flex-1 flex flex-col px-6 pb-8 gap-6 overflow-auto min-h-0">
+          {/* Album art */}
+          <div className="flex-1 flex items-center justify-center py-2">
+            <div className="w-full max-w-[300px] aspect-square rounded-card bg-card-2 shadow-lift overflow-hidden">
+              {currentSong?.artwork
+                // eslint-disable-next-line @next/next/no-img-element
+                ? <img src={currentSong.artwork} alt="封面" className="w-full h-full object-cover" />
+                : <div className="w-full h-full flex items-center justify-center text-sub">
+                  <Disc3 size={100} strokeWidth={2} className={isPlaying ? 'motion-safe:animate-[spin_8s_linear_infinite]' : ''} />
+                </div>
+              }
+            </div>
+          </div>
 
-          {/* Track info */}
-          <div className="flex items-center gap-4 min-w-0">
-            <DiscArt artwork={currentSong?.artwork} playing={isPlaying} />
-            <div className="min-w-0">
-              <p className="text-sm font-bold text-white truncate">{currentSong?.title || '—'}</p>
-              <p className="text-xs text-white/40 truncate mt-0.5">{currentSong?.artist || '等待播放'}</p>
+          {/* Song info */}
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <h2 className="text-3xl font-black tracking-[-0.035em] truncate">{currentSong?.title || '暂无播放'}</h2>
+              <p className="text-sm text-sub truncate mt-1">{currentSong?.artist || '请选择音乐'}</p>
             </div>
             <button
               onClick={() => currentSong && toggleLike(currentSong.id)}
-              className={`ml-1 shrink-0 p-1.5 transition-all ${currentSong && liked.has(currentSong.id) ? 'text-rose-400' : 'text-white/20 hover:text-white/50'}`}
+              aria-label={currentLiked ? '取消收藏' : '收藏'}
+              aria-pressed={currentLiked}
+              className={`${currentLiked ? ICON_BTN_ON : `${ICON_BTN} bg-card ring-1 ring-line`} w-11 h-11 shrink-0`}
             >
-              <Heart size={16} fill={currentSong && liked.has(currentSong.id) ? 'currentColor' : 'none'} />
+              <Heart size={20} strokeWidth={2} fill={currentLiked ? 'currentColor' : 'none'} />
             </button>
           </div>
 
-          {/* Controls */}
-          <div className="flex flex-col items-center gap-1.5">
-            <div className="flex items-center gap-5">
-              <button onClick={() => setShuffle(s => !s)} className={`transition-colors ${shuffle ? 'text-violet-400' : 'text-white/30 hover:text-white'}`}>
-                <Shuffle size={16} />
-              </button>
-              <button onClick={playPrev} className="text-white/50 hover:text-white transition-colors">
-                <SkipBack size={20} fill="currentColor" />
-              </button>
-              <button
-                onClick={togglePlay}
-                disabled={!currentSong || playLoading}
-                className="w-11 h-11 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-transform shadow-xl disabled:opacity-40"
-              >
-                {playLoading
-                  ? <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
-                  : isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" className="ml-0.5" />
-                }
-              </button>
-              <button onClick={playNext} className="text-white/50 hover:text-white transition-colors">
-                <SkipForward size={20} fill="currentColor" />
-              </button>
-              <button onClick={cycleRepeat} className={`transition-colors ${repeatMode !== 'none' ? 'text-violet-400' : 'text-white/30 hover:text-white'}`}>
-                {repeatMode === 'one' ? <Repeat1 size={16} /> : <Repeat size={16} />}
-              </button>
-            </div>
-            <div className="flex items-center gap-2 text-[10px] text-white/25 font-mono tabular-nums">
+          {/* Seeker */}
+          <div className="space-y-1">
+            <Seeker progress={progress} onSeek={seekTo} />
+            <div className="flex justify-between text-xs text-sub tabular-nums">
               <span>{fmt(currentTime)}</span>
-              <span className="text-white/10">/</span>
               <span>{fmt(duration)}</span>
             </div>
           </div>
 
-          {/* Volume + Queue */}
-          <div className="flex items-center gap-3 justify-end">
-            <button
-              onClick={() => setShowQueue(q => !q)}
-              className={`p-1.5 transition-colors ${showQueue ? 'text-violet-400' : 'text-white/30 hover:text-white'}`}
-              title="播放队列"
-            >
-              <ListMusic size={18} />
+          {/* Controls */}
+          <div className="flex items-center justify-between gap-2">
+            <button onClick={cycleRepeat} aria-label="循环模式" className={`${repeatActive ? ICON_BTN_ON : ICON_BTN} w-11 h-11`}>
+              {repeatMode === 'one' ? <Repeat1 size={20} strokeWidth={2} /> : <Repeat size={20} strokeWidth={2} />}
             </button>
-            <VolumeSlider volume={volume} muted={isMuted} onVolumeChange={handleVolumeChange} onToggleMute={toggleMute} />
+            <button onClick={playPrev} aria-label="上一首" className={`${ICON_BTN} w-12 h-12`}>
+              <SkipBack size={24} strokeWidth={2} fill="currentColor" />
+            </button>
+            <button
+              onClick={togglePlay}
+              disabled={!currentSong || playLoading}
+              aria-label={isPlaying ? '暂停' : '播放'}
+              className={`${BTN_PRIMARY} w-20 h-20 shadow-lift`}
+            >
+              {playIcon(30, 'ml-1')}
+            </button>
+            <button onClick={playNext} aria-label="下一首" className={`${ICON_BTN} w-12 h-12`}>
+              <SkipForward size={24} strokeWidth={2} fill="currentColor" />
+            </button>
+            <button onClick={() => setShuffle(s => !s)} aria-label="随机播放" aria-pressed={shuffle} className={`${shuffle ? ICON_BTN_ON : ICON_BTN} w-11 h-11`}>
+              <Shuffle size={20} strokeWidth={2} />
+            </button>
+          </div>
+
+          {/* Volume */}
+          <VolumeSlider volume={volume} muted={isMuted} onVolumeChange={handleVolumeChange} onToggleMute={toggleMute} className="w-full" />
+        </div>
+      </div>
+
+      {/* Bottom player bar */}
+      <div className="fixed inset-x-0 bottom-0 z-[45]">
+        <div className="wrap">
+          <div className="relative mb-3 rounded-panel bg-card/85 backdrop-blur-xl ring-1 ring-line shadow-lift">
+
+            {/* Mobile mini bar */}
+            <div className="lg:hidden relative">
+              <div
+                className="flex items-center gap-3 pl-2.5 pr-2.5 h-[72px] cursor-pointer select-none"
+                onClick={() => currentSong && setShowFullPlayer(true)}
+              >
+                <CoverThumb artwork={currentSong?.artwork} playing={isPlaying} className="w-12 h-12" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold truncate">{currentSong?.title || '喵喵音乐'}</p>
+                  <p className="text-xs text-sub truncate mt-0.5">{currentSong?.artist || '点击搜索，开始播放'}</p>
+                </div>
+                <button
+                  onClick={e => { e.stopPropagation(); if (currentSong) toggleLike(currentSong.id); }}
+                  aria-label={currentLiked ? '取消收藏' : '收藏'}
+                  aria-pressed={currentLiked}
+                  className={`${ICON_BTN} w-10 h-10 shrink-0 ${currentLiked ? 'text-pop' : 'text-sub'}`}
+                >
+                  <Heart size={19} strokeWidth={2} fill={currentLiked ? 'currentColor' : 'none'} />
+                </button>
+                <button
+                  onClick={e => { e.stopPropagation(); togglePlay(); }}
+                  disabled={!currentSong || playLoading}
+                  aria-label={isPlaying ? '暂停' : '播放'}
+                  className={`${BTN_PRIMARY} w-12 h-12 shrink-0`}
+                >
+                  {playIcon(20, 'ml-0.5')}
+                </button>
+              </div>
+              <div className="absolute left-5 right-5 bottom-1.5 h-1 rounded-full bg-card-2 overflow-hidden" aria-hidden="true">
+                <div className="h-full rounded-full bg-accent" style={{ width: `${progress}%` }} />
+              </div>
+            </div>
+
+            {/* Desktop bar */}
+            <div className="hidden lg:grid grid-cols-[1fr_minmax(0,1.4fr)_1fr] h-[88px] items-center gap-6 px-3 pr-5">
+
+              {/* Track info */}
+              <div className="flex items-center gap-3 min-w-0">
+                <CoverThumb artwork={currentSong?.artwork} playing={isPlaying} className="w-16 h-16" />
+                <div className="min-w-0">
+                  <p className={`text-sm font-bold truncate ${isPlaying ? 'text-pop' : 'text-ink'}`}>{currentSong?.title || '暂无播放'}</p>
+                  <p className="text-xs text-sub truncate mt-0.5">{currentSong?.artist || '等待播放'}</p>
+                </div>
+                <button
+                  onClick={() => currentSong && toggleLike(currentSong.id)}
+                  aria-label={currentLiked ? '取消收藏' : '收藏'}
+                  aria-pressed={currentLiked}
+                  className={`${ICON_BTN} w-9 h-9 shrink-0 ${currentLiked ? 'text-pop' : 'text-sub hover:text-ink'}`}
+                >
+                  <Heart size={17} strokeWidth={2} fill={currentLiked ? 'currentColor' : 'none'} />
+                </button>
+              </div>
+
+              {/* Controls + progress */}
+              <div className="flex flex-col items-center gap-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setShuffle(s => !s)} aria-label="随机播放" aria-pressed={shuffle} className={`${shuffle ? ICON_BTN_ON : ICON_BTN} w-9 h-9`}>
+                    <Shuffle size={16} strokeWidth={2} />
+                  </button>
+                  <button onClick={playPrev} aria-label="上一首" className={`${ICON_BTN} w-10 h-10`}>
+                    <SkipBack size={18} strokeWidth={2} fill="currentColor" />
+                  </button>
+                  <button
+                    onClick={togglePlay}
+                    disabled={!currentSong || playLoading}
+                    aria-label={isPlaying ? '暂停' : '播放'}
+                    className={`${BTN_PRIMARY} w-12 h-12 mx-1`}
+                  >
+                    {playIcon(20, 'ml-0.5')}
+                  </button>
+                  <button onClick={playNext} aria-label="下一首" className={`${ICON_BTN} w-10 h-10`}>
+                    <SkipForward size={18} strokeWidth={2} fill="currentColor" />
+                  </button>
+                  <button onClick={cycleRepeat} aria-label="循环模式" className={`${repeatActive ? ICON_BTN_ON : ICON_BTN} w-9 h-9`}>
+                    {repeatMode === 'one' ? <Repeat1 size={16} strokeWidth={2} /> : <Repeat size={16} strokeWidth={2} />}
+                  </button>
+                </div>
+                <div className="flex items-center gap-3 w-full text-xs text-sub tabular-nums">
+                  <span className="w-10 text-right shrink-0">{fmt(currentTime)}</span>
+                  <Seeker progress={progress} onSeek={seekTo} />
+                  <span className="w-10 shrink-0">{fmt(duration)}</span>
+                </div>
+              </div>
+
+              {/* Queue + volume */}
+              <div className="flex items-center gap-2 justify-end">
+                <button
+                  onClick={() => setShowQueue(q => !q)}
+                  aria-label="播放队列"
+                  aria-pressed={showQueue}
+                  className={`${showQueue ? ICON_BTN_ON : ICON_BTN} w-9 h-9`}
+                  title="播放队列"
+                >
+                  <ListMusic size={17} strokeWidth={2} />
+                </button>
+                <VolumeSlider volume={volume} muted={isMuted} onVolumeChange={handleVolumeChange} onToggleMute={toggleMute} />
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* ── Global styles ── */}
-      <style jsx global>{`
+      <style>{`
         @keyframes musicbar {
           0%, 100% { transform: scaleY(0.35); }
           50% { transform: scaleY(1); }
         }
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(139,92,246,0.2); border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(139,92,246,0.4); }
+        @media (prefers-reduced-motion: no-preference) {
+          .musicbar {
+            animation: musicbar 0.7s ease-in-out infinite;
+          }
+        }
       `}</style>
     </div>
   );

@@ -1,4 +1,7 @@
 import { ApiDetailResponse, CategoryItem, VodItem } from '@/types';
+import { STATIC_CATEGORIES, getSubCategoryIds } from '@/lib/categories';
+
+export { getSubCategoryIds };
 
 // ─── 엔드포인트 정의 ─────────────────────────────────────────────────────────
 // 클라이언트: /api/proxy/[id] → Route Handler (src/app/api/proxy/[id]/route.ts)
@@ -104,53 +107,6 @@ const CATEGORY_MAP: Record<number, (number | undefined)[]> = {
     50: [undefined, undefined, 29, 50, undefined, undefined, undefined], // 足球
 };
 
-// ─── 정적 카테고리 목록 ───────────────────────────────────────────────────────
-// type_pid: 0 = 최상위, 그 외 = 부모 카테고리 ID
-const STATIC_CATEGORIES: CategoryItem[] = [
-    // 최상위
-    { type_id: 1, type_pid: 0, type_name: '电影' },
-    { type_id: 2, type_pid: 0, type_name: '连续剧' },
-    { type_id: 3, type_pid: 0, type_name: '综艺' },
-    { type_id: 4, type_pid: 0, type_name: '动漫' },
-    { type_id: 36, type_pid: 0, type_name: '短剧' },
-
-    // 영화 하위
-    { type_id: 6, type_pid: 1, type_name: '动作片' },
-    { type_id: 7, type_pid: 1, type_name: '喜剧片' },
-    { type_id: 8, type_pid: 1, type_name: '爱情片' },
-    { type_id: 9, type_pid: 1, type_name: '科幻片' },
-    { type_id: 10, type_pid: 1, type_name: '恐怖片' },
-    { type_id: 11, type_pid: 1, type_name: '剧情片' },
-    { type_id: 12, type_pid: 1, type_name: '战争片' },
-    { type_id: 20, type_pid: 1, type_name: '纪录片' },
-
-    // 드라마 하위
-    { type_id: 13, type_pid: 2, type_name: '国产剧' },
-    { type_id: 14, type_pid: 2, type_name: '香港剧' },
-    { type_id: 15, type_pid: 2, type_name: '韩国剧' },
-    { type_id: 16, type_pid: 2, type_name: '欧美剧' },
-    { type_id: 21, type_pid: 2, type_name: '台湾剧' },
-    { type_id: 22, type_pid: 2, type_name: '日本剧' },
-    { type_id: 23, type_pid: 2, type_name: '海外剧' },
-    { type_id: 24, type_pid: 2, type_name: '泰国剧' },
-
-    // 예능 하위
-    { type_id: 25, type_pid: 3, type_name: '大陆综艺' },
-    { type_id: 26, type_pid: 3, type_name: '港台综艺' },
-    { type_id: 27, type_pid: 3, type_name: '日韩综艺' },
-    { type_id: 28, type_pid: 3, type_name: '欧美综艺' },
-
-    // 애니 하위
-    { type_id: 29, type_pid: 4, type_name: '国产动漫' },
-    { type_id: 30, type_pid: 4, type_name: '日韩动漫' },
-    { type_id: 31, type_pid: 4, type_name: '欧美动漫' },
-    { type_id: 32, type_pid: 4, type_name: '港台动漫' },
-
-    // 스포츠
-    { type_id: 48, type_pid: 0, type_name: '体育赛事' },
-    { type_id: 49, type_pid: 48, type_name: '篮球' },
-    { type_id: 50, type_pid: 48, type_name: '足球' },
-];
 
 export async function getCategories(): Promise<CategoryItem[]> {
     try {
@@ -158,7 +114,7 @@ export async function getCategories(): Promise<CategoryItem[]> {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 6000);
 
-        const res = await fetch(`${base}?ac=detail&pg=1`, { signal: controller.signal, cache: 'no-store' });
+        const res = await fetch(`${base}?ac=detail&pg=1`, { signal: controller.signal, next: { revalidate: 3600 } });
         clearTimeout(timeoutId);
 
         if (!res.ok) return STATIC_CATEGORIES;
@@ -185,11 +141,6 @@ export async function getCategories(): Promise<CategoryItem[]> {
     }
 }
 
-export function getSubCategoryIds(parentId: number): number[] {
-    return STATIC_CATEGORIES
-        .filter(c => c.type_pid === parentId)
-        .map(c => c.type_id);
-}
 
 // ─── 타임아웃 fetch 래퍼 ──────────────────────────────────────────────────
 function fetchWithTimeout(
@@ -198,7 +149,7 @@ function fetchWithTimeout(
 ): Promise<Response | null> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
-    return fetch(url, { signal: controller.signal, cache: 'no-store' })
+    return fetch(url, { signal: controller.signal, next: { revalidate: 600 } })
         .then(res => { clearTimeout(timer); return res; })
         .catch(() => { clearTimeout(timer); return null; });
 }
@@ -295,7 +246,8 @@ export async function getVideoList(
         const uniqueMap = new Map();
         combinedList.forEach(item => {
             const name = (item.vod_name || '').trim();
-            if (name && !uniqueMap.has(name)) {
+            // 个别片源站会混入占位条目, 直接丢弃
+            if (name && !name.includes('同步图片专用') && !uniqueMap.has(name)) {
                 uniqueMap.set(name, item);
             }
         });
@@ -340,7 +292,11 @@ export async function getVideoDetail(id: number | string): Promise<VodItem | nul
             realId = parts.slice(1).join('-');
         }
 
-        const base = ENDPOINTS[apiIndex] ?? ENDPOINTS[0];
+        // 片源站对非法 id (如 0) 会返回最新列表, 必须先校验, 否则会显示无关影片
+        if (!/^\d+$/.test(realId) || Number(realId) <= 0 || !Number.isInteger(apiIndex) || !ENDPOINTS[apiIndex]) {
+            return null;
+        }
+        const base = ENDPOINTS[apiIndex];
 
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 8000);
@@ -355,7 +311,8 @@ export async function getVideoDetail(id: number | string): Promise<VodItem | nul
         const data: ApiDetailResponse = await res.json();
         if (data.code !== 1 || !data.list?.length) return null;
 
-        const item = data.list[0];
+        const item = data.list.find(v => String(v.vod_id) === realId);
+        if (!item) return null;
         item.vod_id = `${apiIndex}-${item.vod_id}` as unknown as number;
 
         const otherPromises = ENDPOINTS.map((endpointBase, idx) => {
@@ -372,8 +329,8 @@ export async function getVideoDetail(id: number | string): Promise<VodItem | nul
         });
 
         const otherResults = await Promise.all(otherPromises);
-        let mergedFrom = item.vod_play_from ? item.vod_play_from.split('$$$').filter(Boolean) : [];
-        let mergedUrl = item.vod_play_url ? item.vod_play_url.split('$$$').filter(Boolean) : [];
+        const mergedFrom = item.vod_play_from ? item.vod_play_from.split('$$$').filter(Boolean) : [];
+        const mergedUrl = item.vod_play_url ? item.vod_play_url.split('$$$').filter(Boolean) : [];
 
         otherResults.forEach(match => {
             if (match && match.vod_play_from && match.vod_play_url) {
@@ -492,4 +449,74 @@ export function parsePlaySources(vod: VodItem) {
         }).filter((ep) => ep.url && (ep.url.includes('.m3u8') || ep.url.includes('.mp4')));
         return { name, episodes };
     }).filter(source => source.episodes.length > 0);
+}
+// ─── 분류별 피드 (하위 분류를 병합) ──────────────────────────────────────────
+// 대부분의 소스는 최상위 type_id 로 요청하면 빈 목록을 돌려주고, 작품은 하위 장르에 들어 있다.
+export async function getFeed(
+    typeId: number,
+    sort: 'hits' | 'time' = 'time',
+    limit = 24
+): Promise<VodItem[]> {
+    const subs = getSubCategoryIds(typeId).slice(0, 6);
+    const ids = subs.length > 0 ? subs : [typeId];
+    const results = await Promise.all(
+        ids.map(id => getVideoList(1, id, true, undefined, undefined, sort))
+    );
+
+    const seen = new Set<string>();
+    const merged: VodItem[] = [];
+    results.forEach(r =>
+        r.list.forEach(v => {
+            // 去掉标点和空白后再比较, 避免 "天命・成凰" 与 "天命成凰" 重复
+            const key = (v.vod_name || '').replace(/[\s\p{P}\p{S}]/gu, '');
+            if (key && v.vod_pic && !seen.has(key)) {
+                seen.add(key);
+                merged.push(v);
+            }
+        })
+    );
+
+    merged.sort((a, b) =>
+        sort === 'hits'
+            ? Number(b.vod_hits || 0) - Number(a.vod_hits || 0)
+            : new Date(b.vod_time || 0).getTime() - new Date(a.vod_time || 0).getTime()
+    );
+    return merged.slice(0, limit);
+}
+
+// ─── 분류 목록 (상위 분류는 하위 분류를 병합해서 페이지 단위로 조회) ───────────
+const LISTING_PAGE_SIZE = 60;
+export async function getTypeListing(
+    page: number,
+    typeId: number,
+    year?: string,
+    area?: string,
+    sort?: string
+): Promise<{ list: VodItem[]; pagecount: number; total: number }> {
+    const subs = getSubCategoryIds(typeId);
+    if (subs.length === 0) return getVideoList(page, typeId, false, year, area, sort);
+
+    // 每个子分类各取一页再合并。完整模式下 8 个子分类 x 多个片源会得到 300+ 条, 一页渲染过重,
+    // 这里用快速模式并限制每页数量; 想看完整列表可以进入具体子分类。
+    const results = await Promise.all(subs.map(id => getVideoList(page, id, true, year, area, sort)));
+    const seen = new Set<string>();
+    const list: VodItem[] = [];
+    let pagecount = 1;
+    let total = 0;
+    results.forEach(r => {
+        pagecount = Math.max(pagecount, r.pagecount);
+        total += r.total;
+        r.list.forEach(v => {
+            const key = (v.vod_name || '').replace(/[\s\p{P}\p{S}]/gu, '');
+            if (key && !seen.has(key)) {
+                seen.add(key);
+                list.push(v);
+            }
+        });
+    });
+
+    if (sort === 'score') list.sort((a, b) => Number(b.vod_score || 0) - Number(a.vod_score || 0));
+    else if (sort === 'time') list.sort((a, b) => new Date(b.vod_time || 0).getTime() - new Date(a.vod_time || 0).getTime());
+    else list.sort((a, b) => Number(b.vod_hits || 0) - Number(a.vod_hits || 0));
+    return { list: list.slice(0, LISTING_PAGE_SIZE), pagecount, total };
 }
